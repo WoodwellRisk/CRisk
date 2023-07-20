@@ -41,8 +41,8 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
         # Construct centroids (I.E. grid)
         if points_lon is None or points_lat is None:
             print('   > Constructing Centroids for GRID:')
-            print(f'Latitude bounds: [{min_lat}, {max_lat}]')
-            print(f'Longitude bounds: [{min_lon}, {max_lon}]')
+            print(f'   > > Latitude bounds: [{min_lat}, {max_lat}]')
+            print(f'   > > Longitude bounds: [{min_lon}, {max_lon}]')
             cent = Centroids.from_pnt_bounds((min_lon, min_lat, max_lon, max_lat), res=resolution)
             cent.check()
         
@@ -51,7 +51,7 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
             ds_rp = windspeed_analysis.tracks_to_wspd_rp( tracks, cent, pool, n_years,
                                                           rperiods = rperiods)
             # Make output file
-            fp_out = os.path.join(args.out_dir, f'./tc_wpsd_returnlevels_grid_{args.name}_{args.nyears}years.nc')
+            fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_grid_{args.name}_{args.nyears}years.nc')
         
         else:
             print('   > Constructing Centroids for POINTS.')
@@ -62,13 +62,17 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
             print('   > Expanding tracks into wind envelopes.')
             ds_rp = windspeed_analysis.tracks_to_wspd_rp( tracks, cent, pool, n_years,
                                                           rperiods = rperiods, reshape_2d=False)
-            fp_out = os.path.join(args.out_dir, f'./tc_wpsd_returnlevels_points_{args.name}_{args.nyears}years.nc')
+            fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_points_{args.name}_{args.nyears}years.nc')
 
         ds_out_list.append(ds_rp)
 
     # Concatenate output datasets
     ds_out = xr.concat(ds_out_list, dim='model')
-    ds_out['model'] = model_names
+    ds_future = ds_out.return_level.isel(model=[1,2,3,4])
+    ds_out['wspd_ibtracs'] = ds_out.return_level.isel(model=0)
+    ds_out['wspd_mean'] = ds_future.mean(dim='model')
+    ds_out['wspd_std'] = ds_future.std(dim='model')
+    ds_out = ds_out.drop('return_level')
 
     # Save output dataset to file
     print(f'Saving to file: {fp_out}')
@@ -88,6 +92,7 @@ if __name__ == "__main__":
                      You can generate these return periods on a regular grid or at set point locations.
                      To generate on a grid, you must specify at least: min_lat, max_lat, min_lon, max_lon
                      To generate at set points, you must at least provide points_lon and points_lat.
+                     If you provide both grid and points, only the points will be analysed.
                      See arguments and options below for more information.'''
                      
     # Parse input arguments
@@ -96,11 +101,17 @@ if __name__ == "__main__":
                     description= description,
                     epilog='Version 2023.07.19')
     parser.add_argument('-basin', type=str, help='Name of STORM basin to use tracks from', required=True)
-    parser.add_argument('-lat1', type=float, help='Minimum grid latitude', default=24)
-    parser.add_argument('-lat2', type=float, help='Maximum grid latitude', default=31)
-    parser.add_argument('-lon1', type=float, help='Minimum grid longitude', default=275)
-    parser.add_argument('-lon2', type=float, help='Maximum grid longitude', default=285)
+    parser.add_argument('-lat1', type=float, help='Minimum grid latitude')
+    parser.add_argument('-lat2', type=float, help='Maximum grid latitude')
+    parser.add_argument('-lon1', type=float, help='Minimum grid longitude')
+    parser.add_argument('-lon2', type=float, help='Maximum grid longitude')
     parser.add_argument('-res', type=float, help='Grid resolution in degrees [Default=0.05]', default=0.05)
+    parser.add_argument('-points_lon', type=float, help='Longitude point locations', 
+                        default=None, nargs='+')
+    parser.add_argument('-points_lat', type=float, help='Latitude point locations', 
+                        default=None, nargs='+')
+    parser.add_argument('-name', type=str, default='TEST',
+                        help='Name of analysis run. Used in output filename: tc_wpsd_returnlevels_{name}_{n_years}years_.nc [Default=TEST]')
     parser.add_argument('-timestep', type=int, help='Timestep of tracks to use. Interpolates to finer track. [Default=1].',
                         default=1)
     parser.add_argument('-rperiods', nargs = '+', type=int,
@@ -111,13 +122,7 @@ if __name__ == "__main__":
                         help='Number of cpus to use in Pathos parallel processing [Default=1].')
     parser.add_argument('-tracks_dir', type=str, default='./input/STORM',
                         help='Directory containing STORM concatenated files (10000 years) [Default=../input/STORM].')
-    parser.add_argument('-name', type=str, default='TEST',
-                        help='Name of analysis run. Used in output filename: tc_wpsd_returnlevels_{name}_{n_years}years_.nc [Default=TEST]')
     parser.add_argument('-out_dir', type=str, help='Path to output directory [Default=./output]', default='./output')
-    parser.add_argument('-points_lon', type=float, help='Longitude point locations [Default = None]', 
-                        default=None, nargs='+')
-    parser.add_argument('-points_lat', type=float, help='Latitude point locations [Default = None]', 
-                        default=None, nargs='+')
     args = parser.parse_args()
     
     # Call main function
