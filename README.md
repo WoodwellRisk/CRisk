@@ -30,7 +30,7 @@ Steps:
 * Change directory into the repository directory (where you cloned it to).
 * Run `./install.sh`. You may need to change permissions on the file using `chmod` first.
 
-This scripts will also create `input` and `output` directories. You can keep data wherever you want
+This scripts will also create `input` and `output` directories in the repository directory. You can keep data wherever you want
 by using the arguments in the scripts, however they are setup to look for the above directories by
 default.
 
