@@ -1,0 +1,7 @@
+*egg*
+src/*egg*
+*checkpoints*
+*.pyc
+data/
+input/
+output/

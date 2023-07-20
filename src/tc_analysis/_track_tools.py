@@ -16,7 +16,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
 from scipy.interpolate import interp1d
-from shapely import Point, Polygon, LineString
+from shapely.geometry import Point, Polygon, LineString
 import xarray as xr
 from datetime import datetime, timedelta
 from . import _utils
