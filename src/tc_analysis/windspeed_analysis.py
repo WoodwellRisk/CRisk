@@ -17,7 +17,6 @@ def tracks_to_wspd_rp(tracks, cent, pool,
     tropcyc = TropCyclone.from_tracks(tracks, centroids=cent, 
                                       ignore_distance_to_coast=True, pool=pool)
     tropcyc.set_frequency([1,n_years])
-    print('Tracks done')
     
     # Calculate return levels for specified periods
     n_rp = len(rperiods)
