@@ -33,12 +33,3 @@ Steps:
 This scripts will also create `input` and `output` directories in the repository directory. You can keep data wherever you want
 by using the arguments in the scripts, however they are setup to look for the above directories by
 default.
-
-### 2. Get track data from bucket
-
-Input data required to run these scripts lives at `gs://cmip5_data/tropical_cyclones/`. 
-Track data lives at `gs://cmip5_data/tropical_cyclones/STORM/tracks`. These files are the
-main input to the scripts in this repository. You can quickly download all of the required
-files by calling `./get_data.sh`. This will create a folder called `./input/STORM`.
-
-As mentioned above, by default the scripts in this repository will search for `./input/STORM`.

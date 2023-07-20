@@ -89,7 +89,7 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
         for rp in rperiods:
             f,a = tcplot.compare_windspeed_grid( ds_out.wspd_ibtracs.sel(return_period = rp),
                                                  ds_out.wspd_mean.sel(return_period=rp) )
-            fp_fig = os.path.join( plot_dir, f'windspeed_grid_{rp}year{args.name}.png')
+            fp_fig = os.path.join( plot_dir, f'windspeed_grid_{rp}year_{args.name}.png')
             plt.savefig( fp_fig, bbox_inches='tight', dpi=300 )
     
 
