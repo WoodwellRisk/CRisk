@@ -8,3 +8,4 @@ output/
 build/
 env_climada.yml
 old
+plots/

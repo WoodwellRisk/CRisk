@@ -10,11 +10,13 @@ import argparse
 from argparse import RawDescriptionHelpFormatter
 import warnings
 from time import time
+from tc_analysis import plot as tcplot
+
 
 def main(min_lat, max_lat, min_lon, max_lon, resolution, 
          basin, timestep, n_years,
          ncpus, rperiods, out_dir, tracks_dir,
-         pt_lon, pt_lat, pt_name):
+         pt_lon, pt_lat, pt_name, plot_dir):
     '''
     MAIN function for windspeed_return_periods.py. Makes use of windspeed_analysis.tracks_to_wspd_rp()
     and cliamda TCTracks() and Tropical_Cyclone() classes to analyse windspeeds for each of the 5
@@ -43,8 +45,8 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
     
         # Construct centroids (I.E. grid)
         if pt_lon is None or pt_lat is None:
+            gridded = True
             cent = Centroids.from_pnt_bounds((min_lon, min_lat, max_lon, max_lat), res=resolution)
-            cent.check()
         
             # Do windspeed analysis
             print('   > Expanding tracks into wind envelopes.')
@@ -54,8 +56,8 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
             fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_grid_{args.name}_{args.nyears}years.nc')
         
         else:
+            gridded = False
             cent = Centroids( np.array(pt_lat), np.array(pt_lon) )
-            cent.check()
     
             # Do windspeed analysis
             print('   > Expanding tracks into wind envelopes.')
@@ -80,6 +82,16 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
     if os.path.exists(fp_out):
         os.remove(fp_out)
     ds_out.to_netcdf(fp_out)
+
+    # Make plots
+    print(f'Saving figures to {plot_dir}')
+    if gridded:
+        for rp in rperiods:
+            f,a = tcplot.compare_windspeed_grid( ds_out.wspd_ibtracs.sel(return_period = rp),
+                                                 ds_out.wspd_mean.sel(return_period=rp) )
+            fp_fig = os.path.join( plot_dir, f'windspeed_grid_{rp}year{args.name}.png')
+            plt.savefig( fp_fig, bbox_inches='tight', dpi=300 )
+    
 
 if __name__ == "__main__":
     '''
@@ -128,13 +140,14 @@ if __name__ == "__main__":
                         default=1)
     parser.add_argument('-rperiods', nargs = '+', type=int,
                         help='Return periods to analyse at [Default=5 10 20 50 100 200 500].',
-                        default=[5, 10, 20, 50, 100, 200, 500])
+                        default=[5, 10, 100, 500])
     parser.add_argument('-nyears', type=int, help='Number of synthetic years to use. [Default=10000].', default=10000)
     parser.add_argument('-ncpus', type=int, default=1, 
                         help='Number of cpus to use in Pathos parallel processing [Default=1].')
     parser.add_argument('-tracks_dir', type=str, default='./input/STORM',
                         help='Directory containing STORM concatenated files (10000 years) [Default=../input/STORM].')
     parser.add_argument('-out_dir', type=str, help='Path to output directory [Default=./output]', default='./output')
+    parser.add_argument('-plot_dir', type=str, help='Path to plots directory [Default=./plots]', default='./plots')
     args = parser.parse_args()
 
     
@@ -156,8 +169,8 @@ if __name__ == "__main__":
     main(args.lat1, args.lat2, args.lon1, args.lon2, args.res, 
          args.basin, args.timestep, args.nyears, args.ncpus, 
          args.rperiods, args.out_dir, args.tracks_dir, 
-         args.pt_lon, args.pt_lat, args.pt_name)
+         args.pt_lon, args.pt_lat, args.pt_name, args.plot_dir)
     tock = time()
     time_elapsed = (tock-tick)/60 #Minutes
     print(' ')
-    print(' Done. Total Walltime: {time_elapsed} minutes')
+    print(f' Done. Total Walltime: {time_elapsed} minutes')
