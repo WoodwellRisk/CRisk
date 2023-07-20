@@ -8,6 +8,7 @@ from tc_analysis import windspeed_analysis
 import os
 import argparse
 import warnings
+import time
 
 def main(min_lat, max_lat, min_lon, max_lon, resolution, 
          basin, timestep, n_years,
@@ -126,7 +127,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Call main function
+    tick = time()
     main(args.lat1, args.lat2, args.lon1, args.lon2, args.res, 
          args.basin, args.timestep, args.nyears, args.ncpus, 
          args.rperiods, args.out_dir, args.tracks_dir, 
          args.points_lon, args.points_lat)
+    tock = time()
+    time_elapsed = (tock-tick)/60 #Minutes
+    print(' Done. Total Walltime: {time_elapsed} minutes')
