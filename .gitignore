@@ -5,3 +5,5 @@ src/*egg*
 data/
 input/
 output/
+build/
+env_climada.yml
