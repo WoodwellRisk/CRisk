@@ -122,7 +122,8 @@ if __name__ == "__main__":
                     description= description,
                     epilog='Version 2023.07.19',
                     formatter_class = RawDescriptionHelpFormatter)
-    parser.add_argument('-basin', type=str, help='Name of STORM basin to use tracks from', required=True)
+    parser.add_argument('-basin', type=str, help='Name of STORM basin to use tracks from.', required=True,
+                        choices = ['EP','NA','NI','SI','SP','EP'])
     parser.add_argument('-lat1', type=float, help='Minimum grid latitude')
     parser.add_argument('-lat2', type=float, help='Maximum grid latitude')
     parser.add_argument('-lon1', type=float, help='Minimum grid longitude')
@@ -135,17 +136,17 @@ if __name__ == "__main__":
     parser.add_argument('-pt_name', type=str, help='Names of pt for output file [Default=None]', 
                         default=None, nargs='+')
     parser.add_argument('-name', type=str, default='TEST',
-                        help='Name of analysis run. Used in output filename: tc_wpsd_returnlevels_{name}_{n_years}years_.nc [Default=TEST]')
+                        help='Name of analysis run. Used in output filename. [Default=TEST]')
     parser.add_argument('-timestep', type=int, help='Timestep of tracks to use. Interpolates to finer track. [Default=1].',
                         default=1)
     parser.add_argument('-rperiods', nargs = '+', type=int,
-                        help='Return periods to analyse at [Default=5 10 20 50 100 200 500].',
+                        help='Return periods to analyse at [Default=5 10 100 500].',
                         default=[5, 10, 100, 500])
     parser.add_argument('-nyears', type=int, help='Number of synthetic years to use. [Default=10000].', default=10000)
     parser.add_argument('-ncpus', type=int, default=1, 
                         help='Number of cpus to use in Pathos parallel processing [Default=1].')
     parser.add_argument('-tracks_dir', type=str, default='./input/STORM',
-                        help='Directory containing STORM concatenated files (10000 years) [Default=../input/STORM].')
+                        help='Directory containing STORM concatenated files (10000 years) [Default=./input/STORM].')
     parser.add_argument('-out_dir', type=str, help='Path to output directory [Default=./output]', default='./output')
     parser.add_argument('-plot_dir', type=str, help='Path to plots directory [Default=./plots]', default='./plots')
     args = parser.parse_args()
