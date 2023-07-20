@@ -47,7 +47,7 @@ def compare_windspeed_grid( data_past, data_future ):
         a[ii].coastlines(resolution='10m', color='black')
 
     # First panel is past
-    a[0].set_title('1989-2015', fontsize=10)
+    a[0].set_title('1989 - 2015', fontsize=10)
     im = a[0].pcolormesh(data_past.lon, data_past.lat, data_past, 
                     cmap=plt.get_cmap('Greens',10), 
                     vmin=cmin, vmax = cmax)
@@ -61,18 +61,19 @@ def compare_windspeed_grid( data_past, data_future ):
     plt.colorbar(im, ax=a[1])
 
     # Third panel is different
-    a[2].set_title('Change in windspeed', fontsize=10)
+    a[2].set_title('Difference (future - past)', fontsize=10)
     diff = data_future - data_past
     cminmax = np.max( [np.abs( np.min(diff) ), np.abs( np.max(diff) ) ] )
     im = a[2].pcolormesh(diff.lon, diff.lat, diff, 
-                    cmap=plt.get_cmap('RdBu_r',11), 
+                         cmap=plt.get_cmap('RdBu_r',11), 
                          vmin=-cminmax, vmax = cminmax)
     plt.colorbar(im, ax=a[2])
 
     f.tight_layout()
 
     rp = data_past.return_period.values
-    f.text(0.5, 1, f'Windspeeds of the {rp}-year event (ms^-1)', fontweight='bold')
+    f.text(0.5, 1.15, f'Windspeeds of the {rp}-year event (ms^-1)', fontweight='bold',
+          transform = a[0].transAxes, ha='center', fontsize=12)
 
     return f, a
 
