@@ -16,3 +16,4 @@ pip install .
 # Create input/output directories
 mkdir input
 mkdir output
+mkdir plots
