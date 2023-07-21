@@ -33,3 +33,6 @@ Steps:
 This scripts will also create `input` and `output` directories in the repository directory. You can keep data wherever you want
 by using the arguments in the scripts, however they are setup to look for the above directories by
 default.
+
+To install the package for development (if you want to modify the code) you will need to follow the climada installation instructions on the
+climada website. Then you can install this package using `pip install -e .`
