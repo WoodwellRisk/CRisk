@@ -15,6 +15,8 @@ import rioxarray
 
 def main():
 
+    margin = 3
+
     # Loop over models in sepcified list
     ds_list = []
     
@@ -113,33 +115,59 @@ def main():
 
 
 if __name__ == "__main__":
+    '''
+    Calls main() after parsing input arguments.
+    '''
 
-    # DIRECTORIES
-    dir_input = '../STORM'
-    dir_output = './output'
+    # Silence warnings
+    warnings.filterwarnings("ignore")
+
+    description = ('')
+                     
+    # Parse input arguments
+    parser = argparse.ArgumentParser(
+                    prog='analyse_tc_category',
+                    description= description,
+                    epilog='Author: David Byrne, Woodwell Climate Research Center',
+                    formatter_class = RawDescriptionHelpFormatter)
+    parser.add_argument('-basin', type=str, help='Name of STORM basin to use tracks from.', required=True,
+                        choices = ['EP','NA','NI','SI','SP','EP'])
+    parser.add_argument('-lat1', type=float, help='Minimum grid latitude')
+    parser.add_argument('-lat2', type=float, help='Maximum grid latitude')
+    parser.add_argument('-lon1', type=float, help='Minimum grid longitude')
+    parser.add_argument('-lon2', type=float, help='Maximum grid longitude')
+    parser.add_argument('-res', type=float, help='Grid resolution in degrees [Default=0.05]', default=0.05)
+    parser.add_argument('-pt_lon', type=float, help='Longitude point locations', 
+                        default=None, nargs='+')
+    parser.add_argument('-pt_lat', type=float, help='Latitude point locations', 
+                        default=None, nargs='+')
+    parser.add_argument('-pt_name', type=str, help='Names of pt for output file [Default=None]', 
+                        default=None, nargs='+')
+    parser.add_argument('-name', type=str, default='TEST',
+                        help='Name of analysis run. Used in output filename. [Default=TEST]')
+    parser.add_argument('-timestep', type=int, help='Timestep of tracks to use. Interpolates to finer track. [Default=1].',
+                        default=1)
+    parser.add_argument('-nyears', type=int, help='Number of synthetic years to use. [Default=10000].', default=10000)
+    parser.add_argument('-ncpus', type=int, default=1, 
+                        help='Number of cpus to use in Pathos parallel processing [Default=1].')
+    parser.add_argument('-tracks_dir', type=str, default='./input/STORM',
+                        help='Directory containing STORM concatenated files (10000 years) [Default=./input/STORM].')
+    parser.add_argument('-out_dir', type=str, help='Path to output directory [Default=./output]', default='./output')
+    parser.add_argument('-plot_dir', type=str, help='Path to plots directory [Default=./plots]', default='./plots')
+    args = parser.parse_args()
     
-    # STORM basin from which to read input files
-    basin = 'NA' # NA, SP, WP, EI or WI
-    output_name = basin
-    
-    # ANALYSIS GRID SETTINGS
-    resolution = 1/5 # Grid resolution in degrees
-    lonmin = -107 # Grid minimum longitude
-    lonmax = 2  # Grid maximum longitude
-    latmin = 3  # Grid minimum latitude
-    latmax = 63  # Grid maxmimum latitude
-    margin = 3  # Margin around grid within which to generate storms (degrees)
-    
-    # Example (lonmin, lonmax, latmin, latmax) for basins
-    # NA: (-107, 2, 63, 3)
-    # SP: ()
-    # WP: (100, 180, 0, 80)
-    # SI: (0, 140, -60, 0)
-    # WI: ()
     
     # ANALYSIS SETTINGS
     radius = 100
-    n_years = 2500
-    delta = 1/3
     
-    main()
+    # Call main function
+    tick = time()
+    main(args.lat1, args.lat2, args.lon1, args.lon2, args.res, 
+         args.basin, args.timestep, args.nyears, args.ncpus, 
+         args.out_dir, args.tracks_dir, 
+         args.pt_lon, args.pt_lat, args.pt_name, 
+         args.plot_dir)
+    tock = time()
+    time_elapsed = (tock-tick)/60 #Minutes
+    print(' ')
+    print(f' Done. Total Walltime: {time_elapsed} minutes')

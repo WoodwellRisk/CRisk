@@ -15,12 +15,16 @@ def tracks_to_wspd_rp(tracks, cent, pool,
 
     # Convert tracks into TropCyclone object at centroids
     tropcyc = TropCyclone.from_tracks(tracks, centroids=cent, 
-                                      ignore_distance_to_coast=True, pool=pool)
+                                      pool=pool, max_dist_inland_km=100,
+                                      max_dist_eye_km = 300)
     tropcyc.set_frequency([1,n_years])
     
     # Calculate return levels for specified periods
     n_rp = len(rperiods)
     return_level = tropcyc.local_exceedance_inten(rperiods)
+
+    # Mask 0s
+    return_level[return_level == 0] = np.nan
 
     if reshape_2d:
         # Reshape return level array to be 2 dimensional
@@ -29,8 +33,10 @@ def tracks_to_wspd_rp(tracks, cent, pool,
         
         # Create output dataset and return
         ds_rp = xr.Dataset()
-        ds_rp['lon'] = (['lon'], np.unique(cent.lon) )
-        ds_rp['lat'] = (['lat'], np.unique(cent.lat) )
+        lon2 = np.reshape(cent.lon, cent_shape)
+        lat2 = np.reshape(cent.lat, cent_shape)
+        ds_rp['lon'] = (['lon'], lon2[0,:] )
+        ds_rp['lat'] = (['lat'], lat2[:,0] )
         ds_rp['return_period'] = (['return_period'], rperiods)
         ds_rp['return_level'] = (['return_period','lat','lon'], return_level)
     else:
@@ -47,5 +53,8 @@ def tracks_to_wspd_rp(tracks, cent, pool,
                    'history':f'Generated: {datetime.datetime.now()}'}
     ds_rp.return_period.attrs = {'units':'years'}
     ds_rp.return_level.attrs = {'units':'ms^-1'}
-                        
+              
+    # Delete the expanded wind fields to avoid memory issues
+    del tropcyc
+
     return ds_rp

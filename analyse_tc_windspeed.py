@@ -1,5 +1,6 @@
 from climada.hazard import TCTracks
 from climada.hazard import Centroids, TropCyclone
+import climada.util.coordinates as u_coord
 from pathos.pools import ProcessPool as Pool
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,6 +30,21 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
     # Create a parallel pool to pass to climada functions
     pool=Pool(ncpus=ncpus)
 
+    # Make centroids and calculate distance to coast
+    print('Creating centroids and related parameters..')
+    if pt_lon is None or pt_lat is None:
+        gridded = True
+        cent = Centroids.from_pnt_bounds((min_lon, min_lat, max_lon, max_lat), res=resolution)
+    else:
+        gridded = False
+        cent = Centroids( np.array(pt_lat), np.array(pt_lon) )
+
+    # Calculate distance to land
+    cent.set_dist_coast( precomputed=True, signed = False)
+    #cent.set_on_land()
+    n_cent = len(cent.lon)
+    print(f'Total number of centroids: {n_cent} \n')
+
     # Do return period analysis for each model individually
     ds_out_list = []
     for model in model_names:
@@ -42,40 +58,29 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
         tracks = TCTracks.from_simulations_storm( fp_tracks, years=np.arange(0, n_years))
         print('   > Interpolating Tracks')
         tracks.equal_timestep(time_step_h = timestep, pool=pool)
-    
-        # Construct centroids (I.E. grid)
-        if pt_lon is None or pt_lat is None:
-            gridded = True
-            cent = Centroids.from_pnt_bounds((min_lon, min_lat, max_lon, max_lat), res=resolution)
-        
-            # Do windspeed analysis
-            print('   > Expanding tracks into wind envelopes.')
-            ds_rp = windspeed_analysis.tracks_to_wspd_rp( tracks, cent, pool, n_years,
-                                                          rperiods = rperiods)
-            # Make output file
-            fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_grid_{args.name}_{args.nyears}years.nc')
-        
-        else:
-            gridded = False
-            cent = Centroids( np.array(pt_lat), np.array(pt_lon) )
-    
-            # Do windspeed analysis
-            print('   > Expanding tracks into wind envelopes.')
-            ds_rp = windspeed_analysis.tracks_to_wspd_rp( tracks, cent, pool, n_years,
-                                                          rperiods = rperiods, reshape_2d=False)
-            if pt_name is not None:
-                ds_rp['loc'] = (['loc'], pt_name)
-            fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_pt_{args.name}_{args.nyears}years.nc')
 
+        # Do windspeed analysis
+        print('   > Expanding tracks into wind envelopes.')
+        ds_rp = windspeed_analysis.tracks_to_wspd_rp( tracks, cent, pool, n_years,
+                                                      rperiods = rperiods, reshape_2d = gridded)
         ds_out_list.append(ds_rp)
+        del tracks
+
+    # Make output file name
+    fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_{args.name}_{args.nyears}years.nc')
 
     # Concatenate output datasets
     ds_out = xr.concat(ds_out_list, dim='model')
     ds_future = ds_out.return_level.isel(model=[1,2,3,4])
     ds_out['wspd_ibtracs'] = ds_out.return_level.isel(model=0)
-    ds_out['wspd_mean'] = ds_future.mean(dim='model')
+    ds_out['wspd_mean'] = ds_future.median(dim='model')
+    ds_out['wspd_median'] = ds_future.mean(dim='model')
     ds_out['wspd_std'] = ds_future.std(dim='model')
     ds_out = ds_out.drop('return_level')
+
+    # Set point names if provided
+    if pt_name is not None:
+        ds_rp['loc'] = (['loc'], pt_name)
 
     # Save output dataset to file
     print(f'Saving to file: {fp_out}')
@@ -88,9 +93,15 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
     if gridded:
         for rp in rperiods:
             f,a = tcplot.compare_windspeed_grid( ds_out.wspd_ibtracs.sel(return_period = rp),
-                                                 ds_out.wspd_mean.sel(return_period=rp) )
+                                                 ds_out.wspd_median.sel(return_period=rp) )
             fp_fig = os.path.join( plot_dir, f'windspeed_grid_{rp}year_{args.name}.png')
             plt.savefig( fp_fig, bbox_inches='tight', dpi=300 )
+
+def check_args(args):
+    if args.lat2 <= args.lat1:
+        raise ValueError(' lat2 must be greater than or equal to lat1.')
+    if args.lon2 <= args.lon1:
+        raise ValueError(' lon2 must be greater than or equal to lon1.')
     
 
 if __name__ == "__main__":
@@ -118,12 +129,12 @@ if __name__ == "__main__":
                      
     # Parse input arguments
     parser = argparse.ArgumentParser(
-                    prog='calculate_windspeed_return_periods',
+                    prog='analyse_tc_windspeed',
                     description= description,
-                    epilog='Version 2023.07.19',
+                    epilog='Author: David Byrne, Woodwell Climate Research Center',
                     formatter_class = RawDescriptionHelpFormatter)
     parser.add_argument('-basin', type=str, help='Name of STORM basin to use tracks from.', required=True,
-                        choices = ['EP','NA','NI','SI','SP','EP'])
+                        choices = ['EP','NA','NI','SI','SP','EP', 'WP'])
     parser.add_argument('-lat1', type=float, help='Minimum grid latitude')
     parser.add_argument('-lat2', type=float, help='Maximum grid latitude')
     parser.add_argument('-lon1', type=float, help='Minimum grid longitude')
@@ -164,6 +175,9 @@ if __name__ == "__main__":
         print(f' Analyzing for {n_pt} pt.')
     print(' ******')
     print(' ')
+
+    # Check inputs
+    check_args(args)
         
     # Call main function
     tick = time()
@@ -172,6 +186,6 @@ if __name__ == "__main__":
          args.rperiods, args.out_dir, args.tracks_dir, 
          args.pt_lon, args.pt_lat, args.pt_name, args.plot_dir)
     tock = time()
-    time_elapsed = (tock-tick)/60 #Minutes
+    time_elapsed = np.round((tock-tick)/60,2) #Minutes
     print(' ')
     print(f' Done. Total Walltime: {time_elapsed} minutes')
