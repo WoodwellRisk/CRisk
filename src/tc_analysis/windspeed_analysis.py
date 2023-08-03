@@ -15,7 +15,7 @@ def tracks_to_wspd_rp(tracks, cent, pool,
 
     # Convert tracks into TropCyclone object at centroids
     tropcyc = TropCyclone.from_tracks(tracks, centroids=cent, 
-                                      pool=pool, max_dist_inland_km=100,
+                                      pool=pool, max_dist_inland_km=50,
                                       max_dist_eye_km = 300)
     tropcyc.set_frequency([1,n_years])
     

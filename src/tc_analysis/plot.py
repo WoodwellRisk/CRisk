@@ -3,7 +3,7 @@ from cartopy import crs as ccrs, feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
 
-def compare_windspeed_grid( data_past, data_future ):
+def compare_windspeed_grid( data_past, data_future, diff_proportion = False ):
     ''' Creates a 3 panel plots showing past windspeeds, future windspeeds
     and the difference between them. Input datasets should be data arrays
     on the same grid and return period. '''
@@ -62,11 +62,18 @@ def compare_windspeed_grid( data_past, data_future ):
 
     # Third panel is different
     a[2].set_title('Difference (future - past)', fontsize=10)
-    diff = data_future - data_past
-    cminmax = np.nanmax( [np.abs( np.nanmin(diff) ), np.abs( np.nanmax(diff) ) ] )
-    im = a[2].pcolormesh(diff.lon, diff.lat, diff, 
-                         cmap=plt.get_cmap('RdBu_r',11), 
-                         vmin=-cminmax, vmax = cminmax)
+    if diff_proportion:
+        diff = ((data_future / data_past) - 1)*100
+        cminmax = np.nanmax( [np.abs( np.nanmin(diff) ), np.abs( np.nanmax(diff) ) ] )
+        im = a[2].pcolormesh(diff.lon, diff.lat, diff, 
+                             cmap=plt.get_cmap('RdBu_r',11), 
+                             vmin=-10, vmax=10)
+    else:
+        diff = data_future - data_past
+        cminmax = np.nanmax( [np.abs( np.nanmin(diff) ), np.abs( np.nanmax(diff) ) ] )
+        im = a[2].pcolormesh(diff.lon, diff.lat, diff, 
+                             cmap=plt.get_cmap('RdBu_r',11), 
+                             vmin=-cminmax, vmax = cminmax)
     plt.colorbar(im, ax=a[2])
 
     f.tight_layout()

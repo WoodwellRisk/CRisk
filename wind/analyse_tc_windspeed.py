@@ -67,7 +67,7 @@ def main(min_lat, max_lat, min_lon, max_lon, resolution,
         del tracks
 
     # Make output file name
-    fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_{args.name}_{args.nyears}years.nc')
+    fp_out = os.path.join(args.out_dir, f'tc_wpsd_returnlevels_{args.nyears}years_{args.name}.nc')
 
     # Concatenate output datasets
     ds_out = xr.concat(ds_out_list, dim='model')
