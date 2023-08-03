@@ -1,18 +1,5 @@
-## Tropical Cyclone Analysis
-Routines and scripts for doing analysis of synthetic tropical cyclone tracks.
-At the moment, this repository is geared around doing an analysis of STORM synthetic tracks [1,2].
-A key library that needs to be installed for many of these scripts is CLIMADA (see here).
+## Extreme Coastal Risk System (TO BE RENAMED)
 
-Scripts:
-
-1. `analyse_tc_windspeed.py`. Calculate return levels for tropical cyclone windspeeds using the Holland parametric tropical cyclone model. This can be done on a grid or at point locations.
-2. `analyse_tc_category.py`. Calculate return periods for each tropical cyclone category passing within 100km. This can be done on a grid or at point locations.
-
-These scripts should be used from the command line using `python analyse_tc_windspeed.py [args]`. You can use the `-h` flag to get more information on how to use each script, arguments and options. 
-
-For example:
-
-`python analyse_tc_windspeed.py -h`
 
 
 ## Setup
