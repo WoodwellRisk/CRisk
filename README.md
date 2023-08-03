@@ -1,4 +1,4 @@
-## Extreme Coastal Risk System (TO BE RENAMED)
+## Coastal Extremes Risk Assessment Framework
 
 ### Install Repository
 
