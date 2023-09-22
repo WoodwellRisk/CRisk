@@ -1,10 +1,6 @@
-## Extreme Coastal Risk System (TO BE RENAMED)
+## Coastal Extremes Risk Assessment Framework
 
-
-
-## Setup
-
-### 1. Install Script
+### Install Repository
 
 The easiest way to set everything up for this package is to use the `install.sh` script.
 This script will install pip, install dependencies for the `tc_analysis` scripts and install
