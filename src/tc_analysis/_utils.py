@@ -1,6 +1,19 @@
 import numpy as np
 from datetime import datetime, timedelta
 
+def compare_str( str1, str2 ):
+
+    # Make both lowercase
+    str1 = str1.lower()
+    str2 = str2.lower()
+
+    # Strip any whitespace
+    str1 = str1.strip()
+    str2 = str2.strip()
+
+    return str1 == str2
+
+
 def make_datetimes( year, month, day, hour ):
     ''' Convert a list of years, months, days and hours into a list of
     datetime objects '''

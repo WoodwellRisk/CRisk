@@ -83,5 +83,3 @@ def compare_windspeed_grid( data_past, data_future, diff_proportion = False ):
           transform = a[0].transAxes, ha='center', fontsize=12)
 
     return f, a
-
-    
