@@ -29,10 +29,11 @@ parser.add_argument('-g', type=str, help='File path to grid file', default='./ro
 parser.add_argument('-o', type=str, help='Output file for test forcing', default='./roms_frc.nc')
 parser.add_argument('-basin', type=str, help='Hurricane basin to search (required if no SID)', default=None)
 parser.add_argument('-sid', type=str, help='Hurricane ibtracs ID to use ', default=None)
-parser.add_argument('-year', type=int, help='Hurricane season to search for name (required if no SID)', required=True)
+parser.add_argument('-year', type=int, help='Hurricane season to search for name (required if no SID)')
 parser.add_argument('-freq', type=float, help='Timestep frequency of forcing (hours)', default=0.5)
 parser.add_argument('-name', type=str, help='Name of hurricane to search for (required if no SID)', default=None)
 parser.add_argument('-buffer', type=float, help='Buffer around grid to clip track (degrees)', default=1)
+parser.add_argument('-model', type=str, help='Parametric wind model', default='H1980')
 
 args = parser.parse_args()
 
@@ -41,8 +42,11 @@ args = parser.parse_args()
 #- - - - - - - - - - - - - - - -#
 
 # Read in storm
-track = tc_analysis.read_one_from_ibtracs( year = args.year, name = args.name,
-                                           basin = args.basin)
+if args.sid is None:
+    track = tc_analysis.read_one_from_ibtracs( year = args.year, name = args.name,
+                                               basin = args.basin)
+else:
+    track = tc_analysis.read_one_from_ibtracs( sid = args.sid )
 track.equal_timestep( time_step_h = args.freq )
 
 # Open grid dataset
@@ -55,7 +59,7 @@ track = tc_analysis.clip_track_to_poly( track, pol, max_dist=args.buffer )
 # Generate wind vectors
 wind_u, wind_v = forcing.make_windfield( ds_grd.lon_rho.values, 
                                          ds_grd.lat_rho.values, 
-                                         track, model='H08', 
+                                         track, model=args.model, 
                                          angle=ds_grd.angle.values )
 
 # Convert wind vectors to stresses

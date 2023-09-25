@@ -22,6 +22,17 @@ from datetime import datetime, timedelta
 from . import _utils
 from climada.hazard import TCTracks
 
+def filter_tracks_by_intensity( track_list, min_intensity = 64 ):
+    ''' Filter tracks that never reach a minimum intensity '''
+
+    keep_idx = []
+    for ii, tr in enumerate(track_list):
+        winds_over = tr.max_sustained_wind.values > min_intensity
+        if np.sum( winds_over ) > 0:
+            keep_idx.append(ii)
+    
+    return [track_list[ii] for ii in keep_idx]
+
 def read_one_from_ibtracs( year=None, name=None, basin=None, sid=None):
     if sid is None:
         track = TCTracks.from_ibtracs_netcdf(year_range=[year,year], basin=basin)

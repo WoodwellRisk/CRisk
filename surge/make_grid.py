@@ -55,7 +55,7 @@ vec_dx = args.c1[0] - args.c2[0]
 vec_dy = args.c1[1] - args.c2[1]
 vec_norm = np.array( [-vec_dy, vec_dx] )
 vec_norm_unit = vec_norm / np.sqrt( vec_norm[0]**2 + vec_norm[1]**2 )
-Lm = int(args.cdist / res)
+Mm = int(args.cdist / res)
 
 # Grid corners -- top left, top right, bottom left, bottom right
 p_tl = args.c1
@@ -67,17 +67,16 @@ p_br = p_tr + args.cdist*vec_norm_unit
 vec_dx = p_tr[0] - p_tl[0]
 vec_dy = p_tr[1] - p_tl[1]
 vec_dist = np.sqrt(vec_dx**2 + vec_dy**2)
-vec_unit = np.array( [vec_dx, vec_dy] ) / vec_dist
-Mm = int(vec_dist / res )                                  # Number of x points in ROMS speak
+Lm = int(vec_dist / res )                                  # Number of x points in ROMS speak
 
 # Now Y direction (Lm)
-vec_dx = p_tl[0] - p_bl[0]
-vec_dy = p_tl[1] - p_bl[1]
-vec_dist = np.sqrt(vec_dx**2 + vec_dy**2)
-vec_unit = np.array( [vec_dx, vec_dy] ) / vec_dist
-Lm = int(vec_dist / res )                                  # Number of y points in ROMS speak
+# vec_dx = p_tl[0] - p_bl[0]
+# vec_dy = p_tl[1] - p_bl[1]
+# vec_dist = np.sqrt(vec_dx**2 + vec_dy**2)
+# vec_unit = np.array( [vec_dx, vec_dy] ) / vec_dist
+# Mm = int(vec_dist / res )                                  # Number of y points in ROMS speak
 
-print(f'Number of coordinates: X = {Mm}, Y={Lm}')
+print(f'Number of coordinates: X (Xi) = {Lm}, Y (Eta) = {Mm}')
 
 #- - - - - - - - - - - - - - - -#
 # SCRIPT
