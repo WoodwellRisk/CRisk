@@ -18,12 +18,14 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-f', type=str, help='Path to history file', default='./roms_his.nc')
-parser.add_argument('-o', type=str, help='Path to output .nc file.', default='roms_zenv.nc')
+parser.add_argument('-proj', type=str, help='Project name/directory', default='.')
+parser.add_argument('-f', type=str, help='Name of ROMS history output file', default='roms_his.nc')
+parser.add_argument('-o', type=str, help='Name of output .nc file', default='roms_zenv.nc')
 args = parser.parse_args()
 
 #- - - - - - - - - - - - - - - -#
 # MAKE PLOTS
 #- - - - - - - - - - - - - - - -#
 
-postprocessing.surge_envelope_from_file( args.f, args.o )
+postprocessing.surge_envelope_from_file( os.path.join( args.proj, args.f) , 
+                                         os.path.join( args.proj, args.o ) )

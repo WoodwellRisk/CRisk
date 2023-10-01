@@ -3,6 +3,25 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+def plot_validation_timseries( mod, obs ):
+    f,a = plt.subplots(1,2,figsize = (10,4))
+
+    a[0].plot( obs.time, obs.sea_level.squeeze(), c='k' )
+    a[0].plot( obs.time, obs.tide.squeeze(), c='k', linestyle='--', linewidth = .5 )
+    a[0].plot( obs.time, obs.tide.squeeze() + mod.zeta.squeeze().values, c='r')
+    a[0].grid(linewidth=.5)
+    a[0].legend(['Obs.','Tide only','Model'])
+    a[0].set_title(' Sea level (m) ')
+    a[0].tick_params(labelrotation=45)
+    
+    a[1].plot( obs.time, obs.ntr.squeeze(), c='k' )
+    a[1].plot( obs.time, mod.zeta.squeeze().values, c='r')
+    a[1].grid(linewidth=.5)
+    a[1].set_title('Non-tidal residual | model zeta (m)')
+    a[1].tick_params(labelrotation=45)
+    f.tight_layout()
+    return f, a
+
 def plot_surge( data, track = None, elev_max = 10, surge_max = 2,
                lonbnds=None, latbnds=None):
 

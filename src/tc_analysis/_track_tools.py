@@ -22,6 +22,13 @@ from datetime import datetime, timedelta
 from . import _utils
 from climada.hazard import TCTracks
 
+def shift_tracks_lon( track_list ):
+    for ii, track in enumerate(track_list):
+        lon = track['lon'].values
+        lon[lon>180] = lon[lon>180] - 360
+        track['lon'] = lon
+    return track_list
+
 def filter_tracks_by_intensity( track_list, min_intensity = 64 ):
     ''' Filter tracks that never reach a minimum intensity '''
 
@@ -43,6 +50,113 @@ def read_one_from_ibtracs( year=None, name=None, basin=None, sid=None):
     else:
         track = TCTracks.from_ibtracs_netcdf(storm_id=sid)
     return track
+
+def get_track_info( track_list ):
+    ''' Get dataframe of basic tc characteristics from list of climada tracks '''
+
+    names = []
+    sid = []
+    year = []
+    category = []
+    
+    for tt, track in enumerate(track_list):
+        names.append(track.name)
+        sid.append(track.sid)
+        year.append( pd.to_datetime(track.time[0].values).year)
+        category.append( track.category )
+
+    df = pd.DataFrame()
+    df['name'] = names
+    df['sid'] = sid
+    df['year'] = year
+    df['category'] = category
+    return df
+
+def distance_track_to_poly( track_list, pol ):
+    ''' Uses Shapely to check minimum proximity of a storm track to a box.
+        The box is defined by specifying lonmin, lonmax, latmin and latmax'''
+    
+    linestrings = tracks_to_linestring( track_list )
+    return pol.distance(linestrings)
+
+def pad_track_start( track, start_time ):
+    return
+
+def clip_track_to_poly( track, poly, max_dist = 1, round_days=True ):
+
+    n_tracks = len(track.data)
+    track_clipped = []
+    for ii in range(n_tracks):
+        trackii = track.data[ii]
+        t_points = list(zip( trackii.lon, trackii.lat) )
+        points = [Point(tc) for tc in t_points]
+        dist = np.array( [poly.distance(pt) for pt in points] )
+        keep_idx = np.where(dist <= max_dist)[0]
+        trackii_clipped = trackii.isel(time=slice( np.min(keep_idx), np.max(keep_idx ) ) )
+
+        if round_days: 
+            date0 = datetime(*pd.to_datetime(trackii_clipped.time.values[0]).timetuple()[:3])
+            date1 = datetime(*pd.to_datetime(trackii_clipped.time.values[-1]).timetuple()[:3])
+            date1 = date1 + timedelta(days=1)
+            track_clipped.append( trackii.sel(time=slice(date0, date1) ) )
+
+    track.data = track_clipped
+    return track
+
+def tracks_to_linestring( track_list ):
+    n_tracks = len(track_list)
+    ls_list = []
+
+    for ii, track in enumerate(track_list):
+        t_points = list(zip( track.lon, track.lat) ) 
+        p_list = [ Point(t) for t in t_points ]
+        ls_list.append( LineString(p_list) )
+
+    return ls_list
+
+def subset_tracks_in_poly( track_list, pol, buffer = 0):
+    ''' Subsets tracks into a geographical box. Tracks should be CLIMADA datasets
+        in a list '''
+
+    distances = distance_track_to_poly( track_list, pol )
+    keep_idx = np.where( distances <= buffer )[0]
+    new_tracks = [track_list[ii] for ii in keep_idx]
+
+    return new_tracks
+
+def subset_tracks_in_year( tracks, year ):
+    ''' Subsets tracks into integer year '''
+    track_list = tracks.data
+    year_list = [ pd.to_datetime(tr.time[0].values).year for tr in track_list ]
+    year_list = np.array(year_list)
+    keep_idx = np.where(year_list == year)[0]
+    new_tracks = TCTracks()
+    new_tracks.data = [track_list[ii] for ii in keep_idx]
+    return new_tracks
+    
+def track_distance_to_grid( df_track, lon1, lat1, radius=100 ):
+    ''' Get distances between all points in track dataframe and a grid '''
+
+    # Convert all to radians
+    lon1 = np.radians(lon1)
+    lat1 = np.radians(lat1)
+    track_lon = np.radians(df_track.longitude.values)
+    track_lat = np.radians(df_track.latitude.values)
+    category = df_track.category.values
+
+    n_pts = len(track_lon)
+    n_grid = len(lon1)
+    category_grid = np.zeros((6, n_grid))
+
+    for ii in range(n_pts):
+        dist = dist = _utils.haversine_rad( lon1, lat1, 
+                                            track_lon[ii], 
+                                            track_lat[ii] )
+        distb = dist < radius
+        cat_ii = int(category[ii])
+        category_grid[ cat_ii ] = category_grid[ cat_ii ] + distb
+
+    return np.clip(category_grid,0,1)
 
 def separate_years( df ):
     ''' Separate a track dataframe (df) into years. This routine will
@@ -86,112 +200,4 @@ def separate_events( df ):
     
     return df_list
 
-def interpolate_track( df, delta = 1/3 ):
-    ''' Interpolates storm track dataframe to a finer timestep. 
-        New timestep is defined by delta, which should be a fraction.
-        For example delta = 1/2 would half the timestep. '''
-    if delta == 1:
-        return df
-    else:
-        ds = df.to_xarray()
-        new_index = np.arange(0, len(ds.index), delta)
-        ds_interp = ds.interp(index = new_index)
-        df_interp = ds_interp.dropna(dim='index').to_dataframe()
-        return df_interp
-
-def get_track_info( track_list ):
-    ''' Get dataframe of basic tc characteristics from list of climada tracks '''
-
-    names = []
-    sid = []
-    year = []
-    category = []
-    
-    for tt, track in enumerate(track_list):
-        names.append(track.name)
-        sid.append(track.sid)
-        year.append( pd.to_datetime(track.time[0].values).year)
-        category.append( track.category )
-
-    df = pd.DataFrame()
-    df['name'] = names
-    df['sid'] = sid
-    df['year'] = year
-    df['category'] = category
-    return df
-
-def distance_track_to_poly( ds_track, pol ):
-    ''' Uses Shapely to check minimum proximity of a storm track to a box.
-        The box is defined by specifying lonmin, lonmax, latmin and latmax'''
-    
-    t_points = list(zip( ds_track.lon, ds_track.lat) )
-    p_list = []
-    for t in t_points:
-        pass
-        
-        p_list.append( Point(t) )
-    
-    ls = LineString(p_list)
-    
-    return pol.distance(ls)
-
-def clip_track_to_poly( track, poly, max_dist = 1, round_days=True ):
-
-    n_tracks = len(track.data)
-    track_clipped = []
-    for ii in range(n_tracks):
-        trackii = track.data[ii]
-        t_points = list(zip( trackii.lon, trackii.lat) )
-        points = [Point(tc) for tc in t_points]
-        dist = np.array( [poly.distance(pt) for pt in points] )
-        keep_idx = np.where(dist <= max_dist)[0]
-        trackii_clipped = trackii.isel(time=slice( np.min(keep_idx), np.max(keep_idx ) ) )
-
-        if round_days: 
-            date0 = datetime(*pd.to_datetime(trackii_clipped.time.values[0]).timetuple()[:3])
-            date1 = datetime(*pd.to_datetime(trackii_clipped.time.values[-1]).timetuple()[:3])
-            date1 = date1 + timedelta(days=1)
-            track_clipped.append( trackii.sel(time=slice(date0, date1) ) )
-
-    track.data = track_clipped
-    return track
-
-def subset_tracks_in_box( track_list, p0, p1, p2, p3):
-    ''' Subsets tracks into a geographical box. Tracks should be CLIMADA datasets
-        in a list '''
-
-    pol = Polygon( (p0, p1, p2, p3) )
-    n_tracks = len(track_list)
-    tracks_to_keep = []
-
-    for ii, track in enumerate(track_list):
-        dist = distance_track_to_poly(track, pol)
-        if dist == 0:
-            tracks_to_keep.append(track)
-
-    return tracks_to_keep
-    
-def track_distance_to_grid( df_track, lon1, lat1, radius=100 ):
-    ''' Get distances between all points in track dataframe and a grid '''
-
-    # Convert all to radians
-    lon1 = np.radians(lon1)
-    lat1 = np.radians(lat1)
-    track_lon = np.radians(df_track.longitude.values)
-    track_lat = np.radians(df_track.latitude.values)
-    category = df_track.category.values
-
-    n_pts = len(track_lon)
-    n_grid = len(lon1)
-    category_grid = np.zeros((6, n_grid))
-
-    for ii in range(n_pts):
-        dist = dist = _utils.haversine_rad( lon1, lat1, 
-                                            track_lon[ii], 
-                                            track_lat[ii] )
-        distb = dist < radius
-        cat_ii = int(category[ii])
-        category_grid[ cat_ii ] = category_grid[ cat_ii ] + distb
-
-    return np.clip(category_grid,0,1)
     

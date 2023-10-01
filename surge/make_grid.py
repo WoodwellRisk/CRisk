@@ -34,18 +34,17 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-res', type=float, help='Reciprocal of horizontal resolution (30 = 1/30 degree)', default=None)
+parser.add_argument('-proj', type=str, help='Project name / directory', default = '.')
+parser.add_argument('-res', type=float, help='Reciprocal of horizontal resolution (30 = 1/30 degree)', default=0.1)
 parser.add_argument('-c1', type=float, help='Coordinates of coastline left (lon, lat)', default=[-93, 32], nargs='+')
 parser.add_argument('-c2', type=float, help='Coordinates of coastline right (lon, lat)', default=[-86, 32], nargs='+')
 parser.add_argument('-cdist', type=float, help='How far to project grid into the ocean (deg)', default=2)
 
-parser.add_argument('-proj', type=str, help='Projection', default='merc')
 parser.add_argument('-b', type=str, help='Path to bathymetry tiff file to interpolate to model grid', default='bathy.tiff')
 parser.add_argument('-rx0_max', type=float, help='Maximum rx0 to use for bathy smoothing (larger = more smoothing)', default=0.35)
 parser.add_argument('-hmin', type=float, help='Minimum bathymetric depth. All depths will be clipped to this value', default=0)
 parser.add_argument('-hmax', type=float, help='Maximum topo value. Elevations greater than this will be masked. If not using wetting and drying, set this to 0.', default=10)
 parser.add_argument('-o', type=str, help='Name of output grid netCDF file', default='roms_grd.nc')
-parser.add_argument('-grd_name', type=str, help='Name of grid (attributed of output file)', default='TEST')
 
 args = parser.parse_args()
 
@@ -91,7 +90,7 @@ lat_max = max(p_tl[1], p_tr[1], p_bl[1], p_br[1])
 lat_0 = (lat_min + lat_max) / 2.
 
 # Basemap projection
-map = Basemap(projection=args.proj, llcrnrlon=lon_min, llcrnrlat=lat_min,
+map = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min,
               urcrnrlon=lon_max, urcrnrlat=lat_max, lat_0=lat_0, lon_0=lon_0,
               resolution='h')
 
@@ -104,7 +103,8 @@ lonv, latv = list(map(hgrd.x_vert, hgrd.y_vert, inverse=True))
 hgrd = pyroms.grid.CGrid_geo(lonv, latv, map)
 
 # Interpolate bathymetry
-ds_bathy = xr.open_dataset(args.b)
+fp_bathy = os.path.join( args.proj, args.b )
+ds_bathy = xr.open_dataset(fp_bathy)
 topo = ds_bathy.band_data[0].values
 lons = ds_bathy.x.values
 lats = ds_bathy.y.values
@@ -116,8 +116,9 @@ topo = -topo
 lon, lat = np.meshgrid(lons, lats)
 my_interpolating_function = RegularGridInterpolator((lats, lons), topo, method='linear')
 h = my_interpolating_function((hgrd.lat_rho, hgrd.lon_rho))
+h[h>5000] = 5000
 
-# Make solid mask and remove lakes
+# Make solid mask and remove lakes in solid mask
 mask_rho = h>-args.hmax
 mask_labels = ndi.label(mask_rho)
 for ii in range(2, mask_labels[1]):
@@ -132,16 +133,27 @@ if args.hmin > 0:
 # save raw bathymetry
 hraw = h.copy()
 
-# Smooth the bathy
+# Smooth the WHOLE bathy first
 RoughMat = bathy_tools.RoughnessMatrix(h, hgrd.mask_rho)
-print('Max Roughness value is: ', RoughMat.max())
+print('Max Starting Roughness value is: ', RoughMat.max())
 
 # smooth the raw bathy using the direct iterative method from Martinho and Batteen (2006)
-h = bathy_smoothing.smoothing_Positive_rx0(h>0, h, args.rx0_max)
+h = bathy_smoothing.smoothing_Positive_rx0(h>=0, h, args.rx0_max)
 
 # check bathymetry roughness again
-RoughMat = bathy_tools.RoughnessMatrix(h, hgrd.mask_rho)
-print('Max Roughness value is: ', RoughMat.max())
+RoughMat = bathy_tools.RoughnessMatrix(h, h>=0)
+print('Max Interior Roughness value is: ', RoughMat.max())
+
+# Further smooth areas around the exterior of the domain for stability
+# buffer_width = 20
+# h_bdy = bathy_smoothing.smoothing_Positive_rx0(hgrd.mask_rho, h, args.rx0_max/25)
+# RoughMat = bathy_tools.RoughnessMatrix(h_bdy, hgrd.mask_rho)
+# print('Max Boundary Roughness value is: ', RoughMat.max())
+
+# h[:buffer_width,:] = h_bdy[:buffer_width, :]
+# h[-buffer_width:,:] = h_bdy[-buffer_width:, :]
+# h[:,:buffer_width] = h_bdy[:,:buffer_width]
+# h[:,-buffer_width:] = h_bdy[:,-buffer_width:]
 
 # Vertical coordinates, even though not required
 theta_b = 2
@@ -151,5 +163,21 @@ N = 30
 vgrd = pyroms.vgrid.s_coordinate_4(h, theta_b, theta_s, Tcline, N, hraw=hraw)
 
 # Create the pyroms grid object and write to file
-grd = pyroms.grid.ROMS_Grid(args.grd_name, hgrd, vgrd)
-pyroms.grid.write_ROMS_grid(grd, filename=args.o)
+grdname = args.proj
+if args.proj == '.':
+    grdname = 'NONAME'
+grd = pyroms.grid.ROMS_Grid(grdname, hgrd, vgrd)
+fp_out = os.path.join(args.proj, args.o)
+pyroms.grid.write_ROMS_grid(grd, fp_out)
+
+# Save some data to grid_info file
+fp_info = os.path.join( args.proj, 'grid_info.txt' )
+fid = open(fp_info, 'w')
+fid.write('ROMS grid created using make_grid.py \n')
+fid.write('')
+fid.write(f' c1      :: {args.c1}\n')
+fid.write(f' c2      :: {args.c2}\n')
+fid.write(f' cdist   :: {args.cdist}\n')
+fid.write(f' res     :: {args.res}\n')
+fid.write(f' rx0_max :: {args.rx0_max}\n')
+fid.close()

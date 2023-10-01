@@ -1,10 +1,14 @@
 import numpy as np
-from climada.hazard import TCTracks
+from climada.hazard.tc_tracks import TCTracks, estimate_rmw
 from climada.hazard import Centroids, TropCyclone
 import climada.util.coordinates as u_coord
 from shapely.geometry import Polygon
 import xarray as xr
 import pandas as pd
+from . import postprocessing
+
+def make_era5_forcing( ds_grd, ds_era5 ):
+    return
 
 def get_forcing_info( fp_frc = './roms_frc.nc' ):
 
@@ -42,10 +46,77 @@ def make_uniform_windfield( lon, lat, time, u, v, angle=None ):
         wind_u, wind_v = rotate_winds(wind_u, wind_v, -angle)
     
     return wind_u, wind_v
+
+def make_pressure_field(lon, lat, ds_track, 
+                         model = 'H1980'):
+
+    # Make distance array
+    n_nodes = len( ds_track.time )
+    pressure = np.zeros((n_nodes, lon.shape[0], lon.shape[1]))
+    rmw = estimate_rmw(ds_track.radius_max_wind.values,
+                       ds_track.central_pressure.values )
+                       
+    for ii in range(n_nodes):
+        distkm = postprocessing.haversine( lon, lat, 
+                                           ds_track.lon.values[ii], 
+                                           ds_track.lat.values[ii], 
+                                           radians=False )
+        B_param = _B_holland_1980( ds_track.max_sustained_wind.values[ii],
+                                   ds_track.environmental_pressure.values[ii],
+                                   ds_track.central_pressure.values[ii])
+        
+        pii = holland_pressure( distkm, rmw[ii],
+                                     B_param, 
+                                     ds_track.environmental_pressure.values[ii],
+                                     ds_track.central_pressure.values[ii], 
+                                     ds_track.lat.values[ii] )
+            
+        pressure[ii] = pii
+    return pressure
+
+def _B_holland_1980(
+    wmax: np.ndarray,
+    penv: np.ndarray,
+    pcen: np.ndarray,
+):
+    """Holland's 1980 B-value computation for gradient-level winds.
+    """
+    GRADIENT_LEVEL_TO_SURFACE_WINDS = 0.9
+    RHO_AIR = 1.15
+
+    wmax = wmax / GRADIENT_LEVEL_TO_SURFACE_WINDS
     
+    # the factor 100 is from conversion between mbar and pascal
+    pdelta = 100 * (penv - pcen)
+    hol_b = wmax**2 * np.exp(1) * RHO_AIR / np.fmax(np.spacing(1), pdelta)
+    return np.clip(hol_b, 1, 2.5)
+
+def holland_pressure( d_centr: np.ndarray,
+                      r_max: np.ndarray,
+                      hol_b: np.ndarray,
+                      penv: np.ndarray,
+                      pcen: np.ndarray,
+                      lat: np.ndarray,
+    ) -> np.ndarray:
+    """Symmetric and static wind fields (in m/s) according to Holland 1980.
+
+     surface winds by adjusting the parameter `hol_b` (see function `_bs_holland_2008`).
+    """
+    pres = np.zeros_like(d_centr)
+    too_close = d_centr < 0.1
+    
+    r_max_norm = (r_max / d_centr)**hol_b
+    pres = pcen + (penv - pcen)*np.exp( -r_max_norm )
+    pres[too_close] = pcen
+    return pres
+
+def _coriolis_parameter(lat: np.ndarray) -> np.ndarray:
+    """Compute the Coriolis parameter from latitude."""
+    V_ANG_EARTH = 7.29e-5
+    return 2 * V_ANG_EARTH * np.sin(np.radians(np.abs(lat)))
 
 def make_windfield( lon, lat, track, max_dist_eye_km = 400, angle=None,
-                   model = 'H08'):
+                   model = 'H1980'):
     ''' Make windfield xarray dataset from a climada track. Wind vectors are relative to N/E '''
 
     # Make centroids from grid file
@@ -91,27 +162,43 @@ def tau_andreas( U, V, rho = 1.290 ):
     tau_v = V * s * rho * Cd
     return tau, tau_u, tau_v
 
-def make_forcing_dataset( ds_grd, sustr, svstr, time, 
+def make_forcing_dataset( ds_grd, time, 
+                          sustr = None, svstr=None, 
+                          press = None, 
                           track_lon = None, track_lat = None ):
 
     ds_tmp = ds_grd[['lon_rho','lat_rho','lon_u','lat_u','lon_v','lat_v']]
     ds_tmp['sms_time'] = (['sms_time'], time)
-    ds_tmp['sustr'] = (['sms_time','eta_u', 'xi_u'], sustr)
-    ds_tmp['svstr'] = (['sms_time','eta_v', 'xi_v'], svstr)
-    ds_tmp['sustr'].attrs = {'long_name':"surface u-momentum stress",
-                             'units':"Newton meter-2",
-                             'field':"surface u-momentum stress",
-                             'time':"sms_time",
-                             'coordinates':'lon_u lat_u' }
-    ds_tmp['svstr'].attrs = {'long_name':"surface v-momentum stress",
-                             'units':"Newton meter-2",
-                             'field':"surface v-momentum stress",
-                             'time':"sms_time",
-                             'coordinates':'lon_v lat_v' }
+    ds_tmp['pair_time'] = (['pair_time'], time)
+
+    if sustr is not None:
+        ds_tmp['sustr'] = (['sms_time','eta_u', 'xi_u'], sustr)
+        ds_tmp['sustr'].attrs = {'long_name':"surface u-momentum stress",
+                                 'units':"m/s",
+                                 'field':"surface u-momentum stress",
+                                 'time':"sms_time",
+                                 'coordinates':'lon_u lat_u' }
+    if svstr is not None:
+        ds_tmp['svstr'] = (['sms_time','eta_v', 'xi_v'], svstr)
+        ds_tmp['svstr'].attrs = {'long_name':"surface v-momentum stress",
+                                 'units':"Newton meter-2",
+                                 'field':"surface v-momentum stress",
+                                 'time':"sms_time",
+                                 'coordinates':'lon_v lat_v' }
+
+    if press is not None:
+        ds_tmp['Pair'] = (['pair_time','eta_rho', 'xi_rho'], press)
+        ds_tmp['Pair'].attrs = {'long_name':"surface air pressure",
+                                 'units':"millibar",
+                                 'field':"surface air pressure",
+                                 'time':"pair_time",
+                                 'coordinates':'lon_rho lat_rho' }
+        
     ds_tmp.sms_time.encoding['units'] = 'days since 1900-01-01'
+    ds_tmp.pair_time.encoding['units'] = 'days since 1900-01-01'
 
     if track_lon is not None:
         ds_tmp['track_lon'] = (['sms_time'], track_lon)
         ds_tmp['track_lat'] = (['sms_time'], track_lat)
-    
+
     return ds_tmp

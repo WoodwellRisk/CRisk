@@ -25,14 +25,15 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-g', type=str, help='File path to grid file', default='./roms_grd.nc')
-parser.add_argument('-o', type=str, help='Output file for test forcing', default='./roms_frc.nc')
+parser.add_argument('-proj', type=str, help='Project name / directory', default = '.')
+parser.add_argument('-g', type=str, help='Name of grid file', default='roms_grd.nc')
+parser.add_argument('-o', type=str, help='Name of output file', default='roms_frc.nc')
 parser.add_argument('-basin', type=str, help='Hurricane basin to search (required if no SID)', default=None)
 parser.add_argument('-sid', type=str, help='Hurricane ibtracs ID to use ', default=None)
 parser.add_argument('-year', type=int, help='Hurricane season to search for name (required if no SID)')
 parser.add_argument('-freq', type=float, help='Timestep frequency of forcing (hours)', default=0.5)
 parser.add_argument('-name', type=str, help='Name of hurricane to search for (required if no SID)', default=None)
-parser.add_argument('-buffer', type=float, help='Buffer around grid to clip track (degrees)', default=1)
+parser.add_argument('-buffer', type=float, help='Buffer around grid to clip track (degrees)', default=3)
 parser.add_argument('-model', type=str, help='Parametric wind model', default='H1980')
 
 args = parser.parse_args()
@@ -50,12 +51,17 @@ else:
 track.equal_timestep( time_step_h = args.freq )
 
 # Open grid dataset
-ds_grd = xr.open_dataset(args.g).load()
+ds_grd = xr.open_dataset( os.path.join( args.proj, args.g) ).load()
 
 # Extract the track that intersects with model domain
 pol = forcing.get_grid_poly( ds_grd.lon_rho, ds_grd.lat_rho )
 track = tc_analysis.clip_track_to_poly( track, pol, max_dist=args.buffer )
 
+# Generate pressure field
+press = forcing.make_pressure_field( ds_grd.lon_rho.values, 
+                                     ds_grd.lat_rho.values,
+                                     track.data[0]) 
+    
 # Generate wind vectors
 wind_u, wind_v = forcing.make_windfield( ds_grd.lon_rho.values, 
                                          ds_grd.lat_rho.values, 
@@ -87,10 +93,14 @@ regridder = xe.Regridder(ds_r, ds_v, "bilinear")
 ds_v = regridder( ds_r[['svstr']] )
 
 # Create output dataset and save to file
-ds_out = forcing.make_forcing_dataset( ds_grd, ds_u.sustr.values, ds_v.svstr.values,
-                                       track.data[0].time.values, 
-                                       track.data[0].lon.values, track.data[0].lat.values )
-#ds_out.sms_time.encoding['units'] = 'days since 1900-01-01'
-if os.path.exists(args.o):
-    os.remove(args.o)
-ds_out.to_netcdf(args.o)
+ds_out = forcing.make_forcing_dataset( ds_grd, track.data[0].time.values,
+                                       sustr = ds_u.sustr.values, 
+                                       svstr = ds_v.svstr.values, 
+                                       press = press,
+                                       track_lon = track.data[0].lon.values, 
+                                       track_lat = track.data[0].lat.values )
+
+fp_out = os.path.join( args.proj, args.o)
+if os.path.exists(fp_out):
+    os.remove(fp_out)
+ds_out.to_netcdf(fp_out)

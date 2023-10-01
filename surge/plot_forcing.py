@@ -19,16 +19,16 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-f', type=str, help='Path to forcing file', default='./roms_frc.nc')
-parser.add_argument('-o', type=str, help='Path to output .png file. By default, uses same basename as input file (+.png)', default='forcing.png')
-parser.add_argument('-p', type=float, help='Point location to add to plot', default=None, nargs='+')
+parser.add_argument('-proj', type=str, help='Project name/directory', default='.')
+parser.add_argument('-f', type=str, help='Name of forcing file', default='roms_frc.nc')
+parser.add_argument('-o', type=str, help='Name of output file. By default, uses same basename as input file (+.png)', default='forcing.png')
 args = parser.parse_args()
 
 #- - - - - - - - - - - - - - - -#
 # MAKE PLOTS
 #- - - - - - - - - - - - - - - -#
 
-ds = xr.open_dataset(args.f)
+ds = xr.open_dataset( os.path.join( args.proj, args.f) )
 minlon = np.min(ds.lon_rho) - 0.05
 maxlon = np.max(ds.lon_rho) + 0.05
 minlat = np.min(ds.lat_rho) - 0.05
@@ -52,21 +52,23 @@ for ii in range(2):
 
 s = np.sqrt( ds.sustr.values[:,:-1,]**2 + ds.svstr.values[:,:,:-1]**2)
 s_env = np.max(s, axis=0)
-a[0].pcolormesh(ds.lon_rho, ds.lat_rho, s_env, cmap = plt.get_cmap('Reds',12), vmin=0,)
+pc_s = a[0].pcolormesh(ds.lon_rho, ds.lat_rho, s_env, cmap = plt.get_cmap('Reds',8), vmin=0,)
 a[0].set_title('Wind Stress Envelope')
+f.colorbar(pc_s, ax=a[0], fraction=0.05)
 
 #a[1].pcolormesh(ds.lon_rho, ds.lat_rho, ds.h>0, cmap='Blues')
 a[1].set_title('Pressure Envelope')
-
-if args.p is not None:
-    a[0].scatter(args.p[0], args.p[1],  marker='o', s=25, facecolors='none', edgecolor='r', linewidth=1.5)
+pmin = np.min( ds.Pair.values, axis=0 )
+pc_p = a[1].pcolormesh(ds.lon_rho, ds.lat_rho, pmin, cmap = plt.get_cmap('Greens_r',8))
+f.colorbar(pc_p, ax=a[1], fraction=0.05)
 
 # Plot tracks if present
 if 'track_lon' in ds and 'track_lat' in ds:
-    a[0].scatter(ds.track_lon, ds.track_lat, c='k', facecolors='none', s=7.5, linewidths=0.5)
-    a[1].scatter(ds.track_lon, ds.track_lat, c='k', facecolors='none', s=7.5, linewidths=0.5)
+    a[0].scatter(ds.track_lon, ds.track_lat, c='k', facecolors='none', s=1.5, linewidths=0.5)
+    a[1].scatter(ds.track_lon, ds.track_lat, c='k', facecolors='none', s=1.5, linewidths=0.5)
     
 f.tight_layout()
 
 # Figure out output name
-f.savefig(args.o)
+fp_out = os.path.join( args.proj, args.o )
+f.savefig(fp_out)

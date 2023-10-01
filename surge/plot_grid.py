@@ -19,16 +19,16 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-f', type=str, help='Path to grid file', default='./roms_grd.nc')
-parser.add_argument('-o', type=str, help='Path to output .png file. By default, uses same basename as input file (+.png)', default=None)
-parser.add_argument('-p', type=float, help='Point location to add to plot', default=None, nargs='+')
+parser.add_argument('-proj', type=str, help='Project name/directory', default='.')
+parser.add_argument('-f', type=str, help='Path to grid file', default='roms_grd.nc')
+parser.add_argument('-o', type=str, help='Output file name. By default, uses same basename as input file (+.png)', default=None)
 args = parser.parse_args()
 
 #- - - - - - - - - - - - - - - -#
 # MAKE PLOTS
 #- - - - - - - - - - - - - - - -#
 
-ds = xr.open_dataset(args.f)
+ds = xr.open_dataset( os.path.join( args.proj, args.f))
 minlon = np.min(ds.lon_rho) - 0.05
 maxlon = np.max(ds.lon_rho) + 0.05
 minlat = np.min(ds.lat_rho) - 0.05
@@ -58,16 +58,12 @@ a[1].set_title('Positive/Negative bathy')
 
 a[2].pcolormesh(ds.lon_rho, ds.lat_rho, ds.mask_rho, cmap='Reds')
 a[2].set_title('Solid Mask')
-
-if args.p is not None:
-    a[0].scatter(args.p[0], args.p[1],  marker='o', s=25, facecolor='none', edgecolor='r', linewidth=1.5)
-    a[1].scatter(args.p[0], args.p[1],  marker='o', s=25, facecolor='none', edgecolor='r', linewidth=1.5)
-    a[2].scatter(args.p[0], args.p[1],  marker='o', s=25, facecolor='none', edgecolor='r', linewidth=1.5)
     
 f.tight_layout()
 
 # Figure out output name
 if args.o is None:
     fp_out = Path(args.f).with_suffix('.png')
+    fp_out = os.path.join( args.proj, fp_out )
 
 f.savefig(fp_out)

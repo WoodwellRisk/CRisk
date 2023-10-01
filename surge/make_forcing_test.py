@@ -26,8 +26,9 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-g', type=str, help='File path to grid file', default='./roms_grd.nc')
-parser.add_argument('-o', type=str, help='Output file for test forcing', default='./roms_frc.nc')
+parser.add_argument('-proj', type=str, help='Project name/directory', default='.')
+parser.add_argument('-g', type=str, help='Name of grid file', default='roms_grd.nc')
+parser.add_argument('-o', type=str, help='Name of output file', default='roms_frc.nc')
 parser.add_argument('-u', type=float, help='Direction of u winds (relative to grid)', default=0)
 parser.add_argument('-v', type=float, help='Direction of v winds (relative to grid)', default=0)
 parser.add_argument('--rotate', type=bool, help='Rotate stress vectors to be relative to N/E', action=argparse.BooleanOptionalAction,
@@ -42,7 +43,7 @@ print(args)
 
 # Make dates and open grid file
 dates = pd.date_range( datetime(2010,1,1), datetime(2010,1,31), freq='1H' )
-ds_grd = xr.open_dataset(args.g)
+ds_grd = xr.open_dataset( os.path.join( args.proj, args.g) )
 
 # Generate winds and stresses
 if args.rotate:
@@ -53,6 +54,12 @@ wind_u, wind_v =  forcing.make_uniform_windfield( ds_grd.lon_rho, ds_grd.lat_rho
                                                   dates, args.u, args.v, 
                                                   angle=angle)
 tau, sustr_rho, svstr_rho = forcing.tau_andreas( wind_u, wind_v)
+
+# Generate pressure
+xy_shape = ds_grd.lon_rho.shape
+press = np.zeros( (len(dates), xy_shape[0], xy_shape[1]) )
+for ii in range(xy_shape[0]):
+    press[:,ii] = 1000-3*ii
 
 # Make dataset from stresses on rho grid
 ds_r = xr.Dataset()
@@ -74,9 +81,13 @@ ds_v['lat'] = (['eta_v','xi_v'], ds_grd.lat_v.values)
 regridder = xe.Regridder(ds_r, ds_v, "bilinear")
 ds_v = regridder( ds_r[['svstr']] )
 
-# Make output dataset and save to file
-ds_out = forcing.make_forcing_dataset( ds_grd, ds_u.sustr.values, ds_v.svstr.values, dates )
+# Create output dataset and save to file
+ds_out = forcing.make_forcing_dataset( ds_grd, time = dates,
+                                       sustr = ds_u.sustr.values, 
+                                       svstr = ds_v.svstr.values, 
+                                       press = press)
 
-if os.path.exists(args.o):
-    os.remove(args.o)
-ds_out.to_netcdf(args.o)
+fp_out = os.path.join( args.proj, args.o)
+if os.path.exists(fp_out):
+    os.remove(fp_out)
+ds_out.to_netcdf(fp_out)
