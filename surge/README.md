@@ -1,11 +1,10 @@
 ## Functions
 
 **make_grid.py**
-```
- Create a rectangular ROMS grid file.
- Creation of a new grid is done by defining the top corners (c1 = left, c2 = right) and the vertical length of the
- domain (cdist) in degrees. Call this from your projects directory and specify the project using -proj.
 
+`Create a rectangular ROMS grid file. Creation of a new grid is done by defining the top corners (c1 = left, c2 = right) and the vertical length of the domain (cdist) in degrees. Call this from your projects directory and specify the project using -proj.`
+
+```
 optional arguments:
   -h, --help        show this help message and exit
   -proj PROJ        Project name / directory
