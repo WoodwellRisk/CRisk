@@ -1,4 +1,4 @@
-# Storm surge simulation using ROMS
+# Coastal Ocean simulation using ROMS
 
 ## Overview
 
