@@ -59,5 +59,7 @@ Once you have generated a grid file, you can run an ensemble of simulations with
 python -proj new_york -ntilei 4 -ntilej 4 -lon -74.03 -lat 40.58 -nyears 1000 -tracks IBTRACS -basin NA
 ```
 
-This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). By default, the script will look in the directory `../../data/STORM` for track text files (the path is relative to `projects/new_york`.
+This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). By default, the script will look in the directory `../../data/STORM` for track text files (the path is relative to `projects/new_york`).
+
+**3. Other scripts**
 
