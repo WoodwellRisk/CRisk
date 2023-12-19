@@ -53,5 +53,11 @@ Which create `roms_grd.png` in `projects/new_york`:
 
 **2. Running a synthetic ensemble**
 
+Once you have generated a grid file, you can run an ensemble of simulations with synthetic tropical cyclone using `run_synthetic_ensemble.py`. This will extract all storm that pass within some distance of a point (default 2 degrees), run an individual simulation for each (across multiple cores) and save the maximum surge envelope of point time series for each. For example:
 
+```
+python -proj new_york -ntilei 4 -ntilej 4 -lon -74.03 -lat 40.58 -nyears 1000 -tracks IBTRACS -basin NA
+```
+
+This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). By default, the script will look in the directory `../../data/STORM` for track text files (the path is relative to `projects/new_york`.
 
