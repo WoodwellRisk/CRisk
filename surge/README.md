@@ -36,15 +36,15 @@ An overview is provided below. However, to get more detailed information on inpu
 
 **1. Making a grid**
 
-`make_grid.py`: Generates from the `projects/` directory, providing it with the `-proj` argument (project name / directory). You also provide it with the top left (`-c1`) and top right (`-c2`) corners of the grid you want to generate, and then the length in degrees (`-cdist`). You can specify the approximate resolution in km using the `-res` argument. For example:
+`make_grid.py`: Generates from the `projects/` directory, providing it with the `-proj` argument (project name / directory). You also provide it with the top left (`-c1`) and top right (`-c2`) corners of the grid you want to generate, and then the length in degrees (`-cdist`). You can specify the approximate resolution in km using the `-res` argument. `-b` is the path of the bathymetry geotiff file to use (from ETOPO or GEBCO) and is specified relative to the project directory (by default it will just look for `projects/<name>/bathy.tiff`. Make sure the data in the bathymetry file completely contains the entire grid you are making. For example:
 
 ```
 cd projects
 make_project.sh woods_hole
-python make_grid.py -proj woods_hole  -res 10 -c1 -80 37 -c2 -70.8 43.8 -b ../../data/bathy/bathy.tiff -cdist 10 -hmax 5
+python make_grid.py -proj woods_hole  -res 10 -c1 -80 37 -c2 -70.8 43.8 -b bathy.tiff -cdist 10 -hmax 5
 ```
 
-This will have created a new grid file `roms_grd.nc` in `projects/new_york` that has top left corner at (80W, 37N), top right corner at (70.8W, 43.8N), extends ~10 degrees 'downward' from those corners, has resolution of ~10km and can flood land up to 5m. You can quickly plot this file using:
+This will have created a new grid file `roms_grd.nc` in `projects/woods_hole` that has top left corner at (80W, 37N), top right corner at (70.8W, 43.8N), extends ~10 degrees 'downward' from those corners, has resolution of ~10km and can flood land up to 5m. You can quickly plot this file using:
 
 ```
 python plot_grid.py -proj woods_hole
