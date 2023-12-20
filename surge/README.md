@@ -40,16 +40,16 @@ An overview is provided below. However, to get more detailed information on inpu
 
 ```
 cd projects
-make_project.sh new_york
-python make_grid.py -proj new_york  -res 10 -c1 -80 37 -c2 -70.8 43.8 -b ../../data/bathy/bathy.tiff -cdist 10 -hmax 5
+make_project.sh woods_hole
+python make_grid.py -proj woods_hole  -res 10 -c1 -80 37 -c2 -70.8 43.8 -b ../../data/bathy/bathy.tiff -cdist 10 -hmax 5
 ```
 
 This will have created a new grid file `roms_grd.nc` in `projects/new_york` that has top left corner at (80W, 37N), top right corner at (70.8W, 43.8N), extends ~10 degrees 'downward' from those corners, has resolution of ~10km and can flood land up to 5m. You can quickly plot this file using:
 
 ```
-python plot_grid.py -proj new_york
+python plot_grid.py -proj woods_hole
 ```
-Which create `roms_grd.png` in `projects/new_york`:
+Which create `roms_grd.png` in `projects/woods_hole`:
 
 **2. Running a synthetic ensemble**
 
