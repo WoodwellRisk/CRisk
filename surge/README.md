@@ -10,7 +10,7 @@ A validation against observed storm surges at tide gauges shows a mean absolute 
 ``` conda create -n roms_env -f env_surge.yml ```
 2. Install the modules for `crisk_surge`:
 ``` pip install -e . ```
-The `-e` flag means that the modules are editable. The functions are found in `src/crisk_surge`.
+The `-e` flag means that the modules are editable. The functions are found in `src/crisk_surge` and be imported into Python using `import crisk_surge`, or by importing modules directory e.g. `from crisk_surge import validation postprocessing forcing` 
 3. To generate ROMs grids, the PyROMS library is used, which requires a separate installation. It is best to clone the PyROMS repository and install it using `pip`. See here for instructions. Sometimes PyROMS will have trouble finding <library> on the system. In this case, go into `pyroms/pyroms/src/...` and change line X to reflect its path on your system. This is probably somewhere like `usr/lib`.
 
 ## How to use
