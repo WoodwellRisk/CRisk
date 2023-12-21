@@ -104,6 +104,14 @@ def validate_from_file( fp_his = 'roms_his.nc',
     search_idx1 = model_argmax + nsearch
     obs_max = np.nanmax( ntr[ search_idx0 : search_idx1 ] )
     diff_max = model_max - obs_max
+
+    # Correlation
+    corr_x = zeta[ search_idx0 : search_idx1 ]
+    corr_y = ntr[search_idx0 : search_idx1]
+    corrnans = np.logical_or( np.isnan(corr_x), np.isnan(corr_y) )
+    corr_x = corr_x[ ~corrnans ]
+    corr_y = corr_y[ ~corrnans ]
+    corr = np.corrcoef( corr_x, corr_y )[1,0]
     
     # 90th percentile
     model_q = np.percentile( zeta[ search_idx0 : search_idx1 ], 90 )
@@ -124,6 +132,7 @@ def validate_from_file( fp_his = 'roms_his.nc',
     df_out['q_diff'] = diff_q
     df_out['numdata_frac'] = numdata_frac
     df_out['numdata_ha'] = numdata_ha
+    df_out['ts_corr'] = corr
     if sid is not None:
         df_out['sid'] = sid
 

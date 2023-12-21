@@ -7,7 +7,6 @@ from shapely.geometry import Polygon, Point, LineString
 import xarray as xr
 import pandas as pd
 from . import postprocessing
-import xesmf as xe
 from paratc import track_tools
 import os
 
@@ -68,7 +67,7 @@ def make_forcing(   ds_grd, track,
 
     # Create storm instance and look at dataset
     storm = h80( track, ds_grd.lon_rho.values,
-                 ds_grd.lat_rho.values, B_model='holland80', 
+                 ds_grd.lat_rho.values, B_model='powell05', 
                  interp_timestep=.25, rmw_model = 'VW08' )
     storm.scale_winds( scale_winds )
     storm.apply_inflow_angle( inflow_model = 'nws' )
@@ -79,6 +78,10 @@ def make_forcing(   ds_grd, track,
 
 def climada_to_dataframe( track, convert_units = True ):
     ''' Converts a climada track xarray dataset into an appropriate dataframe for ParaTC'''
+
+    if 'lon' in track.dims:
+        track['lon'] = (['time'], track.lon.values )
+    
     df_track = track.rename({'radius_max_wind':'rmw', 
                              'central_pressure':'pcen',
                              'environmental_pressure':'penv',

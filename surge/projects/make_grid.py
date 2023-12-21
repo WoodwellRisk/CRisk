@@ -114,6 +114,15 @@ hgrd = pyroms.grid.Gridgen(lonp, latp, beta, (Mm+3, Lm+3), proj=map)
 lonv, latv = list(map(hgrd.x_vert, hgrd.y_vert, inverse=True))
 hgrd = pyroms.grid.CGrid_geo(lonv, latv, map)
 
+for xx,yy in map.coastpolygons:
+    xa = np.array(xx, np.float32)
+    ya = np.array(yy,np.float32)
+    vv = np.zeros((xa.shape[0],2))
+    vv[:, 0] = xa
+    vv[:, 1] = ya
+    hgrd.mask_polygon(vv,mask_value=0)
+tmp_mask = hgrd.mask_rho.copy().astype(bool)
+
 # Get resolution and print
 x_res, y_res = postprocessing.get_average_grid_resolution( hgrd.lon_rho, hgrd.lat_rho )
 x_res_mean = np.round( np.nanmean(x_res), 2 )
@@ -121,10 +130,13 @@ y_res_mean = np.round( np.nanmean(y_res), 2 )
 print(f' Mean X resolution: {x_res_mean}km')
 print(f' Mean Y resolution: {y_res_mean}km')
 
-# Interpolate bathymetry
+# Interpolate bathymetry - Variable name changes accoridng to ETOPO or GEBCO
 fp_bathy = os.path.join( args.proj, args.b )
 ds_bathy = xr.open_dataset(fp_bathy)
-topo = ds_bathy.band_data[0].values
+if 'band_data' in ds_bathy:
+    topo = ds_bathy.band_data[0].values
+elif 'elevation' in ds_bathy:
+    topo = ds_bathy.elevation[0].values
 lons = ds_bathy.x.values
 lats = ds_bathy.y.values
 
@@ -135,7 +147,6 @@ topo = -topo
 lon, lat = np.meshgrid(lons, lats)
 my_interpolating_function = RegularGridInterpolator((lats, lons), topo, method='linear')
 h = my_interpolating_function((hgrd.lat_rho, hgrd.lon_rho))
-h[h>5000] = 5000
 
 # Make solid mask and remove lakes in solid mask
 mask_rho = h>-args.hmax
@@ -149,43 +160,25 @@ if args.hmin > 0:
     idx = np.where(hgrd.mask_rho <= hmin)
     h[idx] = hmin
 
+# Clip values on land to be at least 1m
+clip_idx = np.logical_and( ~tmp_mask, h>=0 )  
+h[clip_idx] = -.25
+
+import matplotlib.pyplot as plt
+f,a = plt.subplots(1,1)
+a.imshow( clip_idx )
+f.savefig('test.png')
+
 # save raw bathymetry
 hraw = h.copy()
-
-# Smooth the WHOLE bathy first
-RoughMat = bathy_tools.RoughnessMatrix(h, hgrd.mask_rho)
-print('Max Starting Roughness value is: ', RoughMat.max())
-
-# smooth the raw bathy using the direct iterative method from Martinho and Batteen (2006)
-h = bathy_smoothing.smoothing_Positive_rx0(h>=0, h, args.rx0_max)
-
-# check bathymetry roughness again
-RoughMat = bathy_tools.RoughnessMatrix(h, h>=0)
-print('Max Interior Roughness value is: ', RoughMat.max())
-
-# Further smooth areas around the exterior of the domain for stability
-# buffer_width = 20
-# h_bdy = bathy_smoothing.smoothing_Positive_rx0(hgrd.mask_rho, h, args.rx0_max/25)
-# RoughMat = bathy_tools.RoughnessMatrix(h_bdy, hgrd.mask_rho)
-# print('Max Boundary Roughness value is: ', RoughMat.max())
-
-# h[:buffer_width,:] = h_bdy[:buffer_width, :]
-# h[-buffer_width:,:] = h_bdy[-buffer_width:, :]
-# h[:,:buffer_width] = h_bdy[:,:buffer_width]
-# h[:,-buffer_width:] = h_bdy[:,-buffer_width:]
-
-# Vertical coordinates, even though not required
-theta_b = 2
-theta_s = 7.0
-Tcline = 50
-N = 1
-vgrd = pyroms.vgrid.s_coordinate_4(h, theta_b, theta_s, Tcline, N, hraw=hraw)
 
 # Create the pyroms grid object and write to file
 grdname = args.proj
 if args.proj == '.':
     grdname = 'NONAME'
-grd = pyroms.grid.ROMS_Grid(grdname, hgrd, vgrd)
+grd = pyroms.grid.ROMS_Grid(grdname, hgrd)
+grd.vgrid.h = h
+grd.vgrid.hraw=hraw
 fp_out = os.path.join(args.proj, args.o)
 pyroms.grid.write_ROMS_grid(grd, fp_out)
 

@@ -8,6 +8,82 @@ from utide import solve, reconstruct
 from datetime import datetime, timedelta
 import pandas as pd
 import scipy.ndimage as ndi
+import scipy.stats as stats
+from scipy.interpolate import interp1d
+import geopandas as gpd
+
+def separate_land_ocean( z, h, dcrit=0.2 ):
+    # Separate into ocean and land arrays
+    z_ocean = z.where(h>0)
+    z_land = z.where(h<=0) + h - dcrit
+    z_land.name = z_ocean.name
+    return z_ocean, z_land
+
+def coastal_rp_to_gdf( rp_coast ):
+    n_rp = len(rp_coast.rp)
+    lon = rp_coast.lon_rho.values
+    lat = rp_coast.lat_rho.values
+    points = [Point( lon[ii], lat[ii] ) for ii in range(len(lon))]
+    gdf = gpd.GeoDataFrame( geometry = points, crs=4326 )
+    for ii, rp in enumerate( rp_coast.rp.values ):
+        rlii = rp_coast.surge[ii].values
+        rlii[ rlii == 0 ] = np.nan
+        gdf[f'surge_{rp}yr'] = rlii
+    gdf = gdf.dropna()
+    return gdf
+
+def return_period_emp_grid( bmax_grid, n_time, rp=[50, 100, 200] ):
+    ds_out = bmax_grid.to_dataset()[['lon_rho','lat_rho']]
+    bmax_grid = bmax_grid.values
+    bshp = bmax_grid.shape
+    n_pts = np.multiply(*bshp[1:])
+    n_rp = len(rp)
+    bmax_grid = bmax_grid.reshape( (bshp[0], n_pts ))
+    rl = np.zeros( (n_rp,n_pts) ) * np.nan
+    for ii in range(n_pts):
+        bii = bmax_grid[:,ii]
+        bii = bii[ bii > 1e-5 ]
+        if len(bii) > 1:
+            try:
+                rl[:, ii] = return_period_emp( bii, n_time, rp )
+            except:
+                pass
+    ds_out['rp'] = rp
+    ds_out['surge'] = (['rp','eta_rho','xi_rho'], rl.reshape((n_rp, *bshp[1:])))
+    return ds_out
+
+def return_period_emp( bmax, n_time, rp = [50, 100, 200] ):
+
+    if np.sum( ~np.isnan(bmax) ) == 0:
+        return np.zeros_like(rp)*np.nan
+    
+    bmax = np.sort(bmax)[::-1]
+    rk = stats.rankdata(bmax, method='average')[::-1]
+    emp_rp = n_time/rk
+    interpf = interp1d( emp_rp, bmax )
+    return_levels = interpf( rp )
+    return return_levels
+    
+def get_coastal_data( hmask, data, kr = 1 ):
+    ''' Identify indices of ocean points neighbouring land points '''
+    #hmask = ds.h.values <= 0
+    n_r, n_c = hmask.shape
+    hmask = fill_isolated_regions(hmask)
+    r_ind = []
+    c_ind = []
+    for rr in range(kr, n_r-1):
+        for cc in range(kr, n_c-1):
+            ctr = hmask[rr, cc]
+            kernel = hmask[ rr-kr: rr+kr+1, cc-kr:cc+kr+1 ]
+            if np.sum(kernel) > 0:# and ctr == 0:
+                r_ind.append(rr)
+                c_ind.append(cc)
+
+    data_coast = data.isel( eta_rho = xr.DataArray( r_ind, dims=['index'] ), 
+                            xi_rho = xr.DataArray( c_ind, dims=['index'] ) )
+
+    return data_coast
+            
 
 def get_average_grid_resolution( lon, lat, utm=False ):
 
@@ -36,11 +112,24 @@ def get_average_grid_resolution( lon, lat, utm=False ):
 
     return x_res, y_res
 
-def get_timeseries_nearest_point( ds_grd, ds, pt_lon, pt_lat ):
+def get_nearest_timeseries_from_file( pt_lon, pt_lat, 
+                                      fp_grd = 'roms_grd.nc', 
+                                      fp_his = 'roms_his.nc',
+                                      window = None):
+
+    ds_grd = xr.open_dataset(fp_grd)
+    ds_his = xr.open_dataset(fp_his)
+    ds_ts = get_timeseries_nearest_point( ds_grd, ds_his, pt_lon, pt_lat, window=window )
+    return ds_ts
+
+def get_timeseries_nearest_point( ds_grd, ds, 
+                                  pt_lon, pt_lat,
+                                  window = None):
 
     lon2 = ds_grd.lon_rho.values
     lat2 = ds_grd.lat_rho.values
-    mask = ds_grd.h.values > 0
+    mask = (ds_grd.h.values > 0)
+    mask = fill_isolated_regions(mask)
 
     if type(pt_lon) is not list:
         pt_lon = [pt_lon]
@@ -51,7 +140,33 @@ def get_timeseries_nearest_point( ds_grd, ds, pt_lon, pt_lat ):
 
     ds_ts = ds.isel( eta_rho = xr.DataArray(r_ind), 
                      xi_rho = xr.DataArray(c_ind) )
-    ds_ts = ds_ts.rename({'dim_0':'loc'})
+    ds_ts = ds_ts.rename({'dim_0':'loc'})[['zeta','h']]
+
+    # Index window around maximum
+    if window is not None:
+        window_z = np.zeros( 2*window + 1 ) * np.nan
+        max_idx = np.argmax( ds_ts.zeta.values )
+        idx0 = max_idx - window
+        idx1 = max_idx + window
+        zeta = ds_ts.zeta.values.squeeze()
+
+        if idx0 < 0:
+            wind_idx0 = np.abs(idx0)
+            window_z[wind_idx0:window+1] = zeta[:max_idx+1]
+        else:
+            window_z[:window+1] = zeta[idx0:max_idx+1]
+
+        if idx1 >= len(zeta):
+            wind_idx1 = len(zeta) - idx1
+            window_z[window+1:wind_idx1-1] = zeta[max_idx+1:]
+        else:
+            window_z[window+1:] = zeta[ max_idx+1:idx1+1 ]
+        
+        ds_ts2 = xr.Dataset()
+        ds_ts2['zeta'] = (['time'], window_z)
+        ds_ts2['h'] = ds_ts.h
+        ds_ts = ds_ts2
+    
     return ds_ts
 
 def fill_isolated_regions( mask, area = 20 ):
@@ -61,6 +176,8 @@ def fill_isolated_regions( mask, area = 20 ):
     for ii in range(mask_labels[1]):
         if np.sum(mask_labels[0] == ii) <= area:
             mask[ np.where(mask_labels[0] == ii) ] = 0
+        else:
+            pass
 
     return mask
 
@@ -176,7 +293,8 @@ def calculate_surge_envelope( ds_his = None, fp_his = 'roms_his.nc',
 
 def make_zero_surge_envelope( fp_grd = './roms_grd.nc', ds_grd = None, 
                               fp_out = 'roms_zenv.nc', save_to_file = False,
-                              mask_land = True  ):
+                              mask_land = True,
+                              timeseries_window = None):
 
     if ds_grd is None:
         ds_grd = xr.open_dataset(fp_grd)
@@ -189,6 +307,9 @@ def make_zero_surge_envelope( fp_grd = './roms_grd.nc', ds_grd = None,
         zenv = zenv.where( ds_grd.h > 0 )
 
     zenv = zenv.set_coords(['lon_rho','lat_rho'])
+
+    if timeseries_window is not None:
+        zenv['timeseries'] = (['time'], np.zeros( 2*window + 1))
 
     if save_to_file:
         if os.path.exists( fp_out ):
