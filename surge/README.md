@@ -23,27 +23,34 @@ A new 'project' directory is created for each area of study and model domain. Ea
 6. `analysis/`: Final analysis will go in here.
 7. `roms_frc.nc`: ROMS wind and pressure forcing file. This is generated automatically when calling one of `run_synthetic_ensemble.py` or `run_ibtracs_validation.py`.
 
-You can use the `make_project.sh` script in `projects/` to quickly generate a new project directory, automatically copying over the required files. For example: `make_project.sh new_project_name`. This will create a new directory, the necessary subdirectories and copy the roms template file into the directory.
-
 ## How to use
 An overview is provided below. However, to get more detailed information on each script you can use the `-h` flag, e.g. `python make_grid.py -h`.
 
-**1. Making a grid**
-
-`make_grid.py`: Generates from the `projects/` directory, providing it with the `-proj` argument (project name / directory). You also provide it with the top left (`-c1`) and top right (`-c2`) corners of the grid you want to generate, and then the length in degrees (`-cdist`). You can specify the approximate resolution in km using the `-res` argument. `-b` is the path of the bathymetry geotiff file to use (from ETOPO or GEBCO) and is specified relative to the project directory (by default it will just look for `projects/<name>/bathy.tiff`. Make sure the data in the bathymetry file completely contains the entire grid you are making. For example:
+**0. Creating a new project directory**
+You can use the `make_project.sh` script in `projects/` to quickly generate a new project directory, automatically copying over the required files. This will create a new directory, the necessary subdirectories and copy the roms template file into the directory. `roms.in.template` and `romsM` will be copied from `CRISK/surge/ROMS` (assuming you have compiled the model). For example:
 
 ```
 cd projects
 make_project.sh woods_hole
+```
+
+**1. Making a grid**
+
+`make_grid.py`: Creates a rectangular ROMS grid file from the top corner points. Top corners are defined using -c1 and -c2 (c1 = left, c2 = right) and the vertical length of the domain (-cdist) in degrees. Grid is generated using PyROMS package and Gridgen. Resolution will be approximated as best as possible, but will not be constant throughout the domain. You can specify the approximate resolution in km using the `-r` argument. `-b` is the path of the bathymetry geotiff file to use (from ETOPO or GEBCO) and is specified relative to the project directory (by default it will just look for `projects/<name>/bathy.tiff`. Make sure the data in the bathymetry file completely contains the entire grid you are making. 
+
+For example:
+
+```
 python make_grid.py -proj woods_hole  -res 10 -c1 -80 37 -c2 -70.8 43.8 -b bathy.tiff -cdist 10 -hmax 5
 ```
 
-This will have created a new grid file `roms_grd.nc` in `projects/woods_hole` that has top left corner at (80W, 37N), top right corner at (70.8W, 43.8N), extends ~10 degrees 'downward' from those corners, has resolution of ~10km and can flood land up to 5m. You can quickly plot this file using:
+This will have created a new grid file `roms_grd.nc` in `projects/woods_hole` that has top left corner at (80W, 37N), top right corner at (70.8W, 43.8N), extends ~10 degrees perpendicularly from those corners, has resolution of ~10km and can flood land up to 5m elevation. You can quickly plot this file using:
 
 ```
 python plot_grid.py -proj woods_hole
 ```
-Which create `roms_grd.png` in `projects/woods_hole`:
+
+Which creates `roms_grd.png` in `projects/woods_hole`:
 
 **2. Running a synthetic ensemble**
 
