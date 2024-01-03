@@ -1,38 +1,32 @@
 # Coastal risk assessment using ROMS
 
-This directory contains scripts and executables for running the Regional Ocean Model System (ROMS) to assess coastal risk due to tropical cyclone storm surges. For a specified location, 2000 years of synthetically (statistically) generated tropical cyclones are used to force the ROMS ocean surface. Tracks from the STORM dataset (Bloemendaal et al., 2020) are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). The ParaTC python package is used to generate forcing.
-
-A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~17cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
+This directory contains scripts and functions for running the Regional Ocean Model System (ROMS) to assess coastal risk due to tropical cyclone storm surges. For a specified location, thousands of years of synthetically (statistically) generated tropical cyclones are used to force the ROMS ocean surface. Tracks from the STORM dataset (Bloemendaal et al., 2020) are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). The (ParaTC)[https://pypi.org/project/paratc/] python package is used to generate forcing. A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
 
 ## Setup
 
 1. Use env_surge.yml and conda/mamba to create a new Python environment with the necessary dependencies:
 ``` conda create -n roms_env -f env_surge.yml ```
-2. Install the modules for `crisk_surge`:
+2. Install the modules for `crisk_surge` by running the install inside `CRISK/surge`:
 ``` pip install -e . ```
 The `-e` flag means that the modules are editable. The functions are found in `src/crisk_surge` and be imported into Python using `import crisk_surge`, or by importing modules directory e.g. `from crisk_surge import validation postprocessing forcing` 
-3. To generate ROMs grids, the PyROMS library is used, which requires a separate installation. It is best to clone the PyROMS repository and install it using `pip`. See here for instructions. Sometimes PyROMS will have trouble finding <library> on the system. In this case, go into `pyroms/pyroms/src/...` and change line X to reflect its path on your system. This is probably somewhere like `usr/lib`.
+3. To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow their instructions to do this.
 
-## How to use
+## Structure
 
-This is a project based framework, i.e. we create a new 'project' directory for each area of study and model domain. Each project directory is stored and controlled from the `/projects/` directory in this repository. Before running the model, each project directory should contain:
+A new 'project' directory is created for each area of study and model domain. Each project directory is stored and controlled from the `/projects/` directory in this repository. Each project directory eventually contains:
 
 1. `roms_grd.nc` : The ROMS grid file. This is generated using the `make_grid.py` script in `projects/`. This script uses PyROMS (and by extension `GridGen`) to generate a rectangular ROMS grid file from the command line. 
-2. `roms.in.template` : The ROMS control input file. This is a template file, meaning there are missing lines waiting to be filled by our python scripts.
-3. `romsM`: Files starting with `romsM` are the ROMS executables.
+2. `roms.in.template` : The ROMS control input file. This is a template file, meaning there are missing lines waiting to be filled by our python scripts. The up to date version of this files is in `surge/ROMS`.
+3. `romsM`: The ROMS executable. You can generate this by following the ROMS compilation instructions and using `ROMS/stormsurge.h` as a header file. Once compiled, the executable should be kept in `surge/ROMS` if you will be using `make_project.sh`.
 4. `maxima/`: This is the directory where the storm surge maxima for each year of simulation will be stored.
 5. `plots/`: If you are doing validation, initial plots will be stored here.
+6. `analysis/`: Final analysis will go in here.
+7. `roms_frc.nc`: ROMS wind and pressure forcing file. This is generated automatically when calling one of `run_synthetic_ensemble.py` or `run_ibtracs_validation.py`.
 
-Other files required to run ROMS in this framework are:
+You can use the `make_project.sh` script in `projects/` to quickly generate a new project directory, automatically copying over the required files. For example: `make_project.sh new_project_name`. This will create a new directory, the necessary subdirectories and copy the roms template file into the directory.
 
-1. `roms_frc.nc`: The model forcing file, which contains wind stress vectors and atmospheric pressure.
-2. `roms_tide.nc`: A tidal forcing file, containing tidal harmonic information.
-
-These files will be generated by some of the Python scripts in this repository. You can use the `make_project.sh` script in `projects/` to quickly generate a new project directory, automatically copying over the required files. For example: `make_project.sh new_project_name`. This should be run from `projects/` and inside your new directory there will be `roms.in.template`, `romsM`, `maxima/` and `plots/`.
-
-### Command Line Scripts
-
-An overview is provided below. However, to get more detailed information on inputs you can use the `-h` flag, e.g. `python make_grid.py -h`.
+## How to use
+An overview is provided below. However, to get more detailed information on each script you can use the `-h` flag, e.g. `python make_grid.py -h`.
 
 **1. Making a grid**
 
