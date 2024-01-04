@@ -12,6 +12,7 @@ import os
 import argparse
 import warnings
 import sys
+import geopandas as gpd
 from glob import glob
 warnings.filterwarnings('ignore')
 
@@ -19,59 +20,78 @@ warnings.filterwarnings('ignore')
 # HANDLE INPUTS
 #- - - - - - - - - - - - - - - -#
 
-n_years = 999
-basin = 'NA'
+description = (' Run ensemble of synthetic simulations for a project. You can specify a number of run parameters. If you want to compare with observations, you must make sure obs.nc is in the project directory.')
+                 
+# Parse input arguments
+parser = argparse.ArgumentParser(
+                prog='run_synthetic_ensemble.py',
+                description= description,
+                epilog='Author: David Byrne, Woodwell Climate Research Center',
+                formatter_class = argparse.RawDescriptionHelpFormatter)
+
+parser.add_argument('proj', type=str, help='Project name(s) / directory(s)')
+parser.add_argument('-nyears', type=int, help='Last year to use storms. default=2022', default=100)
+parser.add_argument('-ni', type=int, help='Number of parallel I tiles. default=1', default = 1)
+parser.add_argument('-nj', type=int, help='Number of parallel J tiles. Default=1.', default = 1)
+parser.add_argument('-slon', type=float, help='Longitude of points around which to contruct track neighbourhood.', default=None, nargs='+')
+parser.add_argument('-slat', type=float, help='Latitude of points around which to contruct track neighbourhood.', default=None, nargs='+')
+parser.add_argument('-sfile', type=str, help='Name of shapefile containing track neighbourhood polygon', default=None)
+parser.add_argument('-sbuff', type=float, help='Buffer width (degrees) around track neighbourhood to use tracks', default=2)
+parser.add_argument('-tracks', type=str, help='Name of STORM synthetic track model to use in filename construction. Will also be used in names of analysis files.', default='IBTRACS')
+parser.add_argument('-cdmodel', type=str, help='Wind stress parameterization. Default=peng_li15', default='peng_li15')
+parser.add_argument('-cdmax', type=float, help='Maximum value of stress Cd. Default=2.1e-3', default=2e-3)
+parser.add_argument('-bstress', type=float, help='Bottom stress. Default=2e-3', default = 1e-3)
+parser.add_argument('-scale', type=float, help='Wind Scaling. Default=0.89', default = .83)
+parser.add_argument('-dt', type=float, help='Coarse grid delta time. Default=10', default = 10)
+
+args = parser.parse_args()
+
 fp_grd = './roms_grd.nc'
-proj = 'charleston'
-ctr_lon = -79.9
-ctr_lat = 32.78
-stormmodel = 'IBTRACS'
-storm_dir = '../../data/STORM/'
+ncpu = args.ni * args.nj
 
-bstress = 1e-3
-cdmax = 2.1e-3
-cdmodel = 'peng_li15'
-scale = 0.89
-dt = 6
-ntilei = 5
-ntilej = 5
-ncpu = ntilei * ntilej
-min_dist = 3000
-
-fp_tracks = os.path.join( storm_dir, f'STORM_10000years_{stormmodel}_{basin}.txt' )
-fp_tracks = os.path.join( storm_dir, 'STORM_DATA_IBTRACS_NA_1000_YEARS_4.txt')
+fp_tracks = f'./tracks_{args.tracks}.txt'
 
 #- - - - - - - - - - - - - - - -#
 # SCRIPT
 #- - - - - - - - - - - - - - - -#
 
 # Change into project directory
-os.chdir(proj)
-print(f' *****************-> PROJECT: {proj}', flush=True)
+os.chdir(args.proj)
+print(f' **********-> PROJECT: {args.proj} <-**********', flush=True)
+print(f' **********-> Running {args.nyears} years of STORM_{args.tracks} simulations on {ncpu} CPUs <-**********')
 
 # Read tracks between start and end years
-print(' Opening synthetic tracks file..', flush=True)
-tracks = TCTracks.from_simulations_storm(fp_tracks)
-tracks.data = track_tools.shift_tracks_lon(tracks.data) #TODO
+print(' Processing synthetic tracks..', flush=True)
+tracks = TCTracks.from_simulations_storm( os.path.abspath(fp_tracks) )
+tracks.data = track_tools.shift_tracks_lon(tracks.data)
 sid = [tr.sid for tr in tracks.data]
 tracks = [forcing.climada_to_dataframe(ds) for ds in tracks.data]
+print(f'    Total number of tracks in file: {len(tracks)}', flush=True)
 
 # Open grid file and get grid polygon
 ds_grd = xr.open_dataset( fp_grd )
 grid_poly = forcing.get_grid_poly( ds_grd.lon_rho, ds_grd.lat_rho)
 
 # Subset tracks in grid domain
-keep_idx = track_tools.subset_tracks_in_poly(tracks, grid_poly )
+keep_idx = track_tools.subset_tracks_in_poly(tracks, grid_poly, buffer=1.99 )
 tracks = [tracks[ii] for ii in keep_idx]
 sid = [sid[ii] for ii in keep_idx]
 print(f'    Subsetting to grid domain: {len(tracks)}', flush=True)
 
 # Filter out storms that don't pass close to central tide gauge
-ctr_poly = Point( [ctr_lon, ctr_lat] ).buffer(min_dist)
-keep_idx = track_tools.subset_tracks_in_poly(tracks, ctr_poly)
-tracks = [tracks[ii] for ii in keep_idx]
-sid = [sid[ii] for ii in keep_idx]
-print(f'    Keeping only passing storms: {len(tracks)}', flush=True)
+spoly = None
+if args.slon is not None and args.slat is not None:
+    points = [Point(args.slon[ii], args.slat[ii]).buffer(args.sbuff) for ii in range(len(args.slon))]
+    gpd_poly = gpd.GeoDataFrame( geometry = points ).dissolve()
+    spoly = gpd_poly.geometry[0]
+elif args.sfile is not None:
+    spoly = gpd.read_file(args.sfile).buffer(args.sbuff).geometry[0]
+    
+if spoly is not None:
+    keep_idx = track_tools.subset_tracks_in_poly(tracks, spoly)
+    tracks = [tracks[ii] for ii in keep_idx]
+    sid = [sid[ii] for ii in keep_idx]
+    print(f'    Keeping only storms in study area / near points: {len(tracks)}', flush=True)
 
 # Filter out weak storms
 keep_idx = track_tools.filter_tracks_by_column( tracks, col_min = 33 / 0.9 )
@@ -85,14 +105,18 @@ for ii, tr in enumerate(tracks):
 track_years = np.array(track_years)
 
 n_storms = len(tracks)
-print(f' Running an average of {n_storms/1000} per year')
+if n_storms == 0:
+    raise Exception('No storms found that meet criteria')
+print(f'    Running an average of {n_storms/args.nyears} per year')
 
-year_list = np.arange(0,n_years)
+year_list = np.arange(0,args.nyears)
 year_start = 0
 year_end = np.max(year_list)
 subprocess.run('rm -rf maxima/*', shell=True)
+print(' Running ROMS simulations...')
 
 for yy in year_list:
+
 
     yystr = str(yy).zfill(4)
     
@@ -102,9 +126,6 @@ for yy in year_list:
     # If empty, save empty envelope and continue onto the next year
     n_storms_year = len(year_idx)
     if n_storms_year == 0:
-        # ds_zmax = postprocessing.make_zero_surge_envelope( )
-        # ds_zmax['year'] = yy
-        # ds_zmax.to_netcdf( f'./maxima/zmax_y{yystr}.nc') 
         continue
     
     tracks_yy = [tracks[ii] for ii in year_idx]
@@ -119,59 +140,79 @@ for yy in year_list:
             os.remove('roms_his.nc')
         
         storm = tracks_yy[ii]
-        print(f'Year {yy} / {year_end} --> {ii+1} / {n_storms_year} ---> {sid_yy[ii]}')
+        print(f'    Year {yy} / {year_end} --> {ii+1} / {n_storms_year} ---> {sid_yy[ii]}')
 
         # Make forcing for this storm
-        forcing.make_forcing( ds_grd, storm, cdmodel, 1.5, cdmax,
-                              './roms_frc.nc', scale )
+        forcing.make_forcing( ds_grd, storm, args.cdmodel, 2, args.cdmax,
+                              './roms_frc.nc', args.scale )
         
         # Make input control file
-        input_control.make_infile_from_files( ntilei = ntilei, 
-                                              ntilej = ntilej, 
-                                              dt= dt, 
-                                              bstress = bstress,
+        input_control.make_infile_from_files( ntilei = args.ni, 
+                                              ntilej = args.nj, 
+                                              dt= args.dt, 
+                                              bstress = args.bstress,
                                               fp_frc = 'roms_frc.nc',
                                               fp_grd = 'roms_grd.nc')
     
         # Run model
         subprocess.run( f'mpirun -np {ncpu} --oversubscribe romsM roms.in > log.txt', shell=True,)
+
+        # Check that run was a success (ERROR will be in log file if not)
+        if open('log.txt', 'r').read().find('ERROR') >=0:
+            raise Exception(f' ERROR: Model crashed at storm {sid}. See {args.proj}/log.txt')
     
         # Make annual max
         zenvii = postprocessing.calculate_surge_envelope(mask_land=False)
+        zenvii['year'] = yy
         z_envelopes.append(zenvii)
 
         # Pull out time series at nearest point
-        ds_ts = postprocessing.get_nearest_timeseries_from_file( ctr_lon, ctr_lat, window=48)
-        timeseries.append(ds_ts)
-        
+        ds_his = xr.open_dataset('roms_his.nc')
+        ts_yy= postprocessing.get_coastal_data( ds_his.h, ds_his[['zeta']] )
+        ts_yy = postprocessing.align_timeseries_by_max( ts_yy.zeta )
+        ts_yy['year'] = yy
+        timeseries.append(ts_yy)
 
     ds_zmax = xr.concat(z_envelopes, dim='storm').max(dim='storm')
-    ds_zmax['year'] = yy
     ds_zmax.to_netcdf( f'./maxima/zmax_y{yystr}.nc') 
-
     ds_ts = xr.concat(timeseries, dim='storm')
-    ds_ts['year'] = yy
     ds_ts.to_netcdf( f'./maxima/timeseries_y{yystr}.nc') 
 
-# Aggregate
+# Aggregate zmax
 fp_list = glob('./maxima/zmax*')
 fp_list.sort()
 ds_list = [xr.open_dataset(fp, chunks={}) for fp in fp_list]
 ds = xr.concat(ds_list, dim='storm', coords='different').drop('h')
 ds['lon_rho'] = ds_grd.lon_rho
 ds['lat_rho'] = ds_grd.lat_rho
-ds['n_years'] = n_years
-fp_zenv = f'./analysis/zenv_{stormmodel}.nc'
+ds['nyears'] = args.nyears
+fp_zenv = f'./analysis/zenv_{args.tracks}.nc'
 if os.path.exists(fp_zenv):
     os.remove(fp_zenv)
 ds.to_netcdf(fp_zenv)
 
+# Aggregate time series
 fp_list = glob('./maxima/timeseries*')
 fp_list.sort()
 ds_list = [xr.open_dataset(fp) for fp in fp_list]
-ds = xr.concat(ds_list, dim='storm', coords='different').drop('h')
-ds['n_years'] = n_years
-fp_ts = f'./analysis/timeseries_{stormmodel}.nc'
+ds = xr.concat(ds_list, dim='storm', coords='different')
+ds['nyears'] = args.nyears
+fp_ts = f'./analysis/timeseries_{args.tracks}.nc'
 if os.path.exists(fp_ts):
     os.remove(fp_ts)
 ds.to_netcdf(fp_ts)
+
+# POST ANALYSIS: Mean surge profiles
+print('Calculating mean surge profiles.')
+ts_mean = postprocessing.analyse_mean_surge( ds )
+ts_mean.to_netcdf(f'./analysis/mean_surge_{args.tracks}.nc')
+
+# POST ANALYSIS: Return periods
+print('Calculating Return Periods.')
+fp_rp = f'./analysis/return_periods_grid_{args.tracks}.nc'
+fp_coast = f'./analysis/return_periods_coastal_{args.tracks}.gpkg'
+postprocessing.analyse_return_periods(fp_zenv = fp_zenv, 
+                                      fp_grd = 'roms_grd.nc',
+                                      fp_out_rp = fp_rp,
+                                      fp_out_coast = fp_coast)
+

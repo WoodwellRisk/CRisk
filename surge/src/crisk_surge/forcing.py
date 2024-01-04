@@ -68,7 +68,7 @@ def make_forcing(   ds_grd, track,
     # Create storm instance and look at dataset
     storm = h80( track, ds_grd.lon_rho.values,
                  ds_grd.lat_rho.values, B_model='powell05', 
-                 interp_timestep=.25, rmw_model = 'VW08' )
+                 interp_timestep=.1, rmw_model = 'VW08' )
     storm.scale_winds( scale_winds )
     storm.apply_inflow_angle( inflow_model = 'nws' )
     storm.add_background_winds( bg_model = 'constant', bg_alpha = .55, bg_beta = 20 )

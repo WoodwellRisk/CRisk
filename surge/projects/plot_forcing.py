@@ -14,12 +14,12 @@ description = (' Makes an exploratory plot of a ROMS 2D grid file ')
                  
 # Parse input arguments
 parser = argparse.ArgumentParser(
-                prog='make_grid',
+                prog='plot_forcing',
                 description= description,
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-proj', type=str, help='Project name/directory', default='.')
+parser.add_argument('proj', type=str, help='Project name/directory', default='.')
 parser.add_argument('-f', type=str, help='Name of forcing file', default='roms_frc.nc')
 parser.add_argument('-o', type=str, help='Name of output file. By default, uses same basename as input file (+.png)', default='forcing.png')
 args = parser.parse_args()

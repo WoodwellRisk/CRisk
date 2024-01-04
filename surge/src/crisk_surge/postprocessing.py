@@ -12,11 +12,93 @@ import scipy.stats as stats
 from scipy.interpolate import interp1d
 import geopandas as gpd
 
-def separate_land_ocean( z, h, dcrit=0.2 ):
+def analyse_mean_surge( ts ):
+    ''''''
+    n_storm, n_time, n_index = ts.zeta.shape
+    # Get percentiles of maxima
+    pc_bins = np.arange(80, 105, 5)/100
+    n_bins = len(pc_bins) - 1
+    mean_surge = np.zeros(( n_index, n_bins, n_time ))
+    tsmax = ts.max(dim='time')
+    tsmax_pc = tsmax.quantile(dim='storm', q=pc_bins)
+    
+    for ii in range( n_index ):
+        tsmax_ii = tsmax.zeta.isel(index = ii)
+        z_ii = ts.zeta.isel( index=ii ) / tsmax_ii
+        pc_ii = tsmax_pc.zeta.isel(index=ii).values
+        for bb in range(n_bins):
+            bb_idx = np.logical_and( tsmax_ii >= pc_ii[bb], tsmax_ii < pc_ii[bb+1] )
+            bb_idx = np.where( bb_idx.values )[0]
+            z_ii_bin = z_ii.isel( storm = bb_idx ).mean(dim='storm')
+            mean_surge[ii, bb] = z_ii_bin.values
+    
+    ds_out = xr.Dataset()
+    ds_out['bin'] = pc_bins[:-1]
+    ds_out['time'] = np.arange( n_time ) + 1
+    ds_out['surge_norm'] = (['index','bin','time'], mean_surge)
+    ds_out['pc_val'] = (['index','bin'], tsmax_pc.zeta.values[:,:-1])
+    return ds_out
+
+def analyse_return_periods( fp_zenv = './analysis/zenv_IBTRACS.nc', 
+                            fp_grd = 'roms_grd.nc',
+                            fp_out_rp = './analysis/return_periods.nc',
+                            fp_out_coast = './analysis/coastal_return_periods.gpkg'):
+
+    grd = xr.open_dataset(fp_grd)
+    zenv = xr.open_dataset( fp_zenv )
+    n_years = zenv.year.max().values + 1
+    zenv = adjust_inundation( zenv, grd.h ).zenv
+
+    ds_rp = return_period_emp_grid( zenv, n_time=n_years )
+    rp_ocean, rp_land = separate_land_ocean( ds_rp.surge, grd.h )
+    rp_land.name='flood'
+    ds_rp = rp_ocean.to_dataset()
+    ds_rp['flood'] = rp_land
+    rp_coast= get_coastal_data( grd.h, ds_rp, kr=1 )
+    gdf_coast = coastal_rp_to_gdf( rp_coast )
+
+    gdf_coast.to_file(fp_out_coast)
+    ds_rp.to_netcdf(fp_out_rp)
+
+
+def align_timeseries_by_max( ds_ts, window=48 ):
+
+    n_ts, n_pts = ds_ts.shape
+    # Index window around maximum
+    window_z = np.zeros( (2*window + 1, n_pts) ) * np.nan
+    max_idx = np.argmax( ds_ts.values, axis=0 ).astype(int)
+    for ii in range(n_pts):
+        idx0 = max_idx[ii] - window
+        idx1 = max_idx[ii] + window
+        zeta = ds_ts.isel(index=ii).values
+
+        if idx0 < 0:
+            wind_idx0 = np.abs(idx0)
+            window_z[wind_idx0:window+1, ii] = zeta[:max_idx[ii]+1]
+        else:
+            window_z[:window+1, ii] = zeta[idx0:max_idx[ii]+1]
+
+        if idx1 >= len(zeta):
+            wind_idx1 = len(zeta) - idx1
+            window_z[window+1:wind_idx1-1, ii] = zeta[max_idx[ii]+1:]
+        else:
+            window_z[window+1:, ii] = zeta[ max_idx[ii]+1:idx1+1 ]
+        
+    ds_aligned = xr.Dataset()
+    ds_aligned['zeta'] = (['time','index'], window_z)
+    ds_aligned['lon'] = (['index'], ds_ts.lon_rho.values)
+    ds_aligned['lat'] = (['index'], ds_ts.lat_rho.values)
+    ds_aligned = ds_aligned.set_coords(['lon','lat'])
+    return ds_aligned
+
+def adjust_inundation( z, h, dcrit = 0.2):
+    z = z.where( h>0, z + h - dcrit )
+    return z
+
+def separate_land_ocean( z, h ):
     # Separate into ocean and land arrays
     z_ocean = z.where(h>0)
-    z_land = z.where(h<=0) + h - dcrit
-    z_land.name = z_ocean.name
+    z_land = z.where(h<=0)
     return z_ocean, z_land
 
 def coastal_rp_to_gdf( rp_coast ):
@@ -32,7 +114,7 @@ def coastal_rp_to_gdf( rp_coast ):
     gdf = gdf.dropna()
     return gdf
 
-def return_period_emp_grid( bmax_grid, n_time, rp=[50, 100, 200] ):
+def return_period_emp_grid( bmax_grid, n_time, rp=[50, 100, 200],):
     ds_out = bmax_grid.to_dataset()[['lon_rho','lat_rho']]
     bmax_grid = bmax_grid.values
     bshp = bmax_grid.shape
@@ -43,30 +125,35 @@ def return_period_emp_grid( bmax_grid, n_time, rp=[50, 100, 200] ):
     for ii in range(n_pts):
         bii = bmax_grid[:,ii]
         bii = bii[ bii > 1e-5 ]
-        if len(bii) > 1:
-            try:
-                rl[:, ii] = return_period_emp( bii, n_time, rp )
-            except:
-                pass
+        if len(bii) > 0:
+            rl[:, ii] = return_period_emp( bii, n_time, rp)
     ds_out['rp'] = rp
     ds_out['surge'] = (['rp','eta_rho','xi_rho'], rl.reshape((n_rp, *bshp[1:])))
     return ds_out
 
-def return_period_emp( bmax, n_time, rp = [50, 100, 200] ):
+def return_period_emp( bmax, n_time, rp = [50, 100, 200],
+                       interp_rp = True):
 
     if np.sum( ~np.isnan(bmax) ) == 0:
         return np.zeros_like(rp)*np.nan
+
+    # Remove any NaN values
+    bmax = bmax[ ~np.isnan(bmax) ]
     
     bmax = np.sort(bmax)[::-1]
-    rk = stats.rankdata(bmax, method='average')[::-1]
+    rk = len(bmax) - stats.rankdata(bmax, method='min') + 1
     emp_rp = n_time/rk
-    interpf = interp1d( emp_rp, bmax )
-    return_levels = interpf( rp )
-    return return_levels
+
+    if interp_rp:
+        interpf = interp1d( emp_rp, bmax, bounds_error=False )
+        return_levels = interpf( rp )
+        return return_levels
+    else:
+        return emp_rp, bmax
     
-def get_coastal_data( hmask, data, kr = 1 ):
+def get_coastal_data( h, data, kr = 1 ):
     ''' Identify indices of ocean points neighbouring land points '''
-    #hmask = ds.h.values <= 0
+    hmask = h.values <= 0
     n_r, n_c = hmask.shape
     hmask = fill_isolated_regions(hmask)
     r_ind = []
@@ -75,7 +162,7 @@ def get_coastal_data( hmask, data, kr = 1 ):
         for cc in range(kr, n_c-1):
             ctr = hmask[rr, cc]
             kernel = hmask[ rr-kr: rr+kr+1, cc-kr:cc+kr+1 ]
-            if np.sum(kernel) > 0:# and ctr == 0:
+            if np.sum(kernel) > 0 and ctr == 0:
                 r_ind.append(rr)
                 c_ind.append(cc)
 

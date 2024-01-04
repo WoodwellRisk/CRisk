@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(
                 epilog='Author: David Byrne, Woodwell Climate Research Center',
                 formatter_class = argparse.RawDescriptionHelpFormatter)
 
-parser.add_argument('-proj', type=str, help='Project name/directory', default='.')
+parser.add_argument('proj', type=str, help='Project name/directory')
 parser.add_argument('-f', type=str, help='Path to grid file. [Default = roms_grd.nc]', default='roms_grd.nc')
 parser.add_argument('-o', type=str, help='Output file name. By default, uses same basename as input file (+.png)', default=None)
 args = parser.parse_args()
