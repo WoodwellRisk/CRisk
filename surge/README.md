@@ -62,7 +62,13 @@ For our woods hole example:
 python woods_hole -ni 4 -nj 4 -slon -74.03 -slat 40.58 -nyears 1000 -tracks IBTRACS -basin NA
 ```
 
-This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). The script will open a file called tracks_IBTRACS.txt in the project directory.
+This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). The script will open a file called tracks_IBTRACS.txt in the project directory. Instead of running tracks within a fixed distance of a point, you can also provide a shape or `.gpkg` file using the `-sfile` flag. To run all tracks in the domain, do not specify any of the `-s` variables.
 
 **3. Running a validation with real storms**
+
+You can run an emsemble of real storms through the model using `run_ibtracs_ensemble.py`. This is useful for validation. To perform the validation, download the relevant tide gauge from the research quality University of Hawaii Sea Level Center database. This netCDF file should be placed in the project directory and names `obs.nc`. The result will be a file called `validation.csv`, containing various statistics.
+
+```
+python run_ibtracs_validation.py woods_hole -ni 4 -nj 4
+```
 
