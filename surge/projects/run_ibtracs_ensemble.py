@@ -4,8 +4,8 @@ import numpy as np
 from climada.hazard import TCTracks
 import pandas as pd
 from shapely.geometry import Point
-from crisk_surge import forcing, input_control, validation
-from crisk_surge import plot as rplot
+from crisk.surge import forcing, input_control, validation
+from crisk.surge import plot as rplot
 from paratc import track_tools, tctools
 import subprocess
 import os

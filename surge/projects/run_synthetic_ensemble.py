@@ -1,11 +1,13 @@
 import xarray as xr
+import rioxarray
 import matplotlib.pyplot as plt
 import numpy as np
 from climada.hazard import TCTracks
 import pandas as pd
 from shapely.geometry import Point
-from crisk_surge import forcing, input_control, validation, nesting, postprocessing
-from crisk_surge import plot as rplot
+from crisk.surge import forcing, input_control, validation, nesting, postprocessing
+from crisk.surge import plot as rplot
+import crisk.utils as utils
 from paratc import track_tools, tctools
 import subprocess
 import os
@@ -65,15 +67,22 @@ print(' Processing synthetic tracks..', flush=True)
 tracks = TCTracks.from_simulations_storm( os.path.abspath(fp_tracks) )
 tracks.data = track_tools.shift_tracks_lon(tracks.data)
 sid = [tr.sid for tr in tracks.data]
-tracks = [forcing.climada_to_dataframe(ds) for ds in tracks.data]
+tracks = [utils.climada_to_dataframe(ds) for ds in tracks.data]
 print(f'    Total number of tracks in file: {len(tracks)}', flush=True)
+
+# Remove tracks with 1 point
+track_lens = np.array([len(tr) for tr in tracks])
+keep_idx = np.where( track_lens > 1 )[0]
+tracks = [tracks[ii] for ii in keep_idx]
+sid = [sid[ii] for ii in keep_idx]
+print(f'    Removing single point tracks: {len(tracks)}', flush=True)
 
 # Open grid file and get grid polygon
 ds_grd = xr.open_dataset( fp_grd )
 grid_poly = forcing.get_grid_poly( ds_grd.lon_rho, ds_grd.lat_rho)
 
 # Subset tracks in grid domain
-keep_idx = track_tools.subset_tracks_in_poly(tracks, grid_poly, buffer=1.99 )
+keep_idx = track_tools.subset_tracks_in_poly(tracks, grid_poly, buffer=1 )
 tracks = [tracks[ii] for ii in keep_idx]
 sid = [sid[ii] for ii in keep_idx]
 print(f'    Subsetting to grid domain: {len(tracks)}', flush=True)
@@ -116,7 +125,6 @@ subprocess.run('rm -rf maxima/*', shell=True)
 print(' Running ROMS simulations...')
 
 for yy in year_list:
-
 
     yystr = str(yy).zfill(4)
     
@@ -215,4 +223,33 @@ postprocessing.analyse_return_periods(fp_zenv = fp_zenv,
                                       fp_grd = 'roms_grd.nc',
                                       fp_out_rp = fp_rp,
                                       fp_out_coast = fp_coast)
+### Make tifs
+ds = xr.open_dataset( f'./analysis/return_periods_grid_{args.tracks}.nc' ) 
+grd = xr.open_dataset('roms_grd.nc')
+rp = ds.rp.values
+r = args.r
 
+# Interpolate to regular grid
+lonbnds = ( ds.lon_rho.min().values, ds.lon_rho.max().values )
+latbnds = ( ds.lat_rho.min().values, ds.lat_rho.max().values )
+
+# Create regular grid
+grid_lon = np.arange( lonbnds[0], lonbnds[1], r/222 )
+grid_lat = np.arange( latbnds[0], latbnds[1], r/222 )
+grid = xr.Dataset( coords = dict( lon = grid_lon, lat=grid_lat ) )
+
+# Interpolate
+ds = ds.rename({'lon_rho':'lon','lat_rho':'lat'})
+rg = xe.Regridder( ds, grid, method = 'nearest_s2d')
+h_rg = rg(grd.h)
+grid['mask'] = h_rg > 0
+ds['mask'] = grd.h > 0
+rg = xe.Regridder( ds, grid, method = 'bilinear', 
+                   extrap_method='nearest_s2d')
+ds_rg = rg( ds )
+ds_rg = ds_rg.rename({'lat':'y','lon':'x'})
+
+for ii, rpii in enumerate(rp):
+    dsii = ds_rg.sel(rp = rpii).surge
+    dsii = dsii.rio.write_crs(4326)
+    dsii.rio.to_raster(f'surge_rp_{rpii}yr.tiff')
