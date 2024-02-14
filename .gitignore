@@ -1,3 +1,4 @@
+*.nc
 surge/projects
 *egg*
 src/*egg*
