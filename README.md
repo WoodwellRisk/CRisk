@@ -58,15 +58,16 @@ Which creates `roms_grd.png` in `woods_hole/`.
 
 **2. Running a synthetic ensemble**
 
-Once you have generated a grid file, you can run an ensemble of simulations with synthetic tropical cyclone using `run_synthetic_ensemble.py`. This will extract all storm that pass within some distance of a point (default 2 degrees), run an individual simulation for each (across multiple cores) and save the maximum surge envelope of point time series for each. To use this script, you will need a STORM track file, which is just a text file containing 1000 years. This should be linked or copied to the project directory with a name like `tracks_IBTRACS.txt`. You can then specify which tracks file to use by including the `-tracks` flag. To run more than 1000 years, concatenate the STORM files into a single file.
+You can run an ensemble of simulations to estimate return periods using `run_synthetic_ensemble.py`. This will extract all storm that pass within some distance of a point (default 2 degrees), run an individual simulation for each (across multiple cores) and save the maximum surge envelope of point time series for each. Tracks file should be be linked or copied to the project directory with a name like `tracks_IBTRACS.txt`.
 
 For our woods hole example:
 
 ```
+cp ../data/STORM/STORM_10000years_CMCC_NA.txt woods_hole/tracks_IBTRACS.txt
 python woods_hole -ni 4 -nj 4 -slon -74.03 -slat 40.58 -nyears 1000 -tracks IBTRACS -basin NA
 ```
 
-This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). The script will open a file called tracks_IBTRACS.txt in the project directory. Instead of running tracks within a fixed distance of a point, you can also provide a shape or `.gpkg` file using the `-sfile` flag. To run all tracks in the domain, do not specify any of the `-s` variables.
+This command will run 1000 years of STORM synthetic tracks through the model. It will only run tracks that approach within 2 degrees of (74.03W, 40.58N). The simulations will be split across 16 cores (4x4). The script will open a file called tracks_IBTRACS.txt in the project directory. To run all tracks in the domain, do not specify any of the `-s` variables.
 
 **3. Running a validation with real storms**
 
