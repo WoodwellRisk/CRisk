@@ -1,4 +1,4 @@
-# Coastal risk assessment using synthetic tropical cyclone tracks and ocean simulations
+# Coastal risk assessment using synthetic tropical cyclone tracks
 
 <p align="center">
   <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/crisk_ex.png" />
