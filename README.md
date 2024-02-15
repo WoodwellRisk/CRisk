@@ -11,6 +11,10 @@ Bespoke coastal risk assessments play a crucial role in empowering coastal commu
 
 In these analyses, thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020) . Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
 
+<p align="center">
+  <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/git_val.png" />
+</p>
+
 ## Setup
 
 1. **Install Dependencies:** Use env.yml and conda/mamba to create a new Python environment with the necessary dependencies: `conda create -n roms_env -f env.yml`
