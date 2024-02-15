@@ -1,13 +1,15 @@
 # Coastal risk assessment using ROMS
 
+<p align="center">
+  <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/crisk_ex.png" />
+</p>
+
 This directory contains scripts and functions for running the Regional Ocean Model System (ROMS) to assess coastal risk due to tropical cyclone storm surges. For a specified location, thousands of years of synthetically (statistically) generated tropical cyclones are used to force the ROMS ocean surface. Tracks from the STORM dataset (Bloemendaal et al., 2020) are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). The [ParaTC](https://pypi.org/project/paratc/) python package is used to generate forcing. A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
 
 ## Setup
 
 1. Use env_surge.yml and conda/mamba to create a new Python environment with the necessary dependencies:
 ``` conda create -n roms_env -f env_surge.yml ```
-2. Install the modules for `crisk_surge` by running the install inside `CRISK/surge`:
-``` pip install -e . ```
 The `-e` flag means that the modules are editable. The functions are found in `src/crisk_surge` and be imported into Python using `import crisk_surge`, or by importing modules directory e.g. `from crisk_surge import validation postprocessing forcing` 
 3. To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow their instructions to do this.
 
