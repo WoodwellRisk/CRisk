@@ -1,10 +1,10 @@
 # Coastal risk assessment using ROMS
 
+Bespoke coastal risk assessments play a crucial role in empowering coastal communities to build resilience to the impacts of tropical cyclones. This framework evaluates the magnitude of these risks, going from cyclone tracks to very high resolution projections of flood extent. At Woodwell, we provide selected communities with free assessments of climate change-influenced risk in the near and long term. Forming a part of our extensive climate assessment suite, this framework is designed to be efficient and flexible, ensuring delivery within 6 weeks for anywhere in the world. This directory contains scripts and functions for running the Regional Ocean Model System (ROMS) to assess coastal risk due to tropical cyclone storm surges. For a specified location, thousands of years of synthetically (statistically) generated tropical cyclones are used to force the ROMS ocean surface. Tracks from the STORM dataset (Bloemendaal et al., 2020) are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
+
 <p align="center">
   <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/crisk_ex.png" />
 </p>
-
-This directory contains scripts and functions for running the Regional Ocean Model System (ROMS) to assess coastal risk due to tropical cyclone storm surges. For a specified location, thousands of years of synthetically (statistically) generated tropical cyclones are used to force the ROMS ocean surface. Tracks from the STORM dataset (Bloemendaal et al., 2020) are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). The [ParaTC](https://pypi.org/project/paratc/) python package is used to generate forcing. A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
 
 ## Setup
 
