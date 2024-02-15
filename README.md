@@ -9,12 +9,6 @@ Bespoke coastal risk assessments play a crucial role in empowering coastal commu
 * **Storm Surge**: Storm surge return level estimation using ROMS.
 * **Wind Speed**: Tropical cyclone wind return level estimation using CLIMADA.
 
-In these analyses, thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020) . Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
-
-<p align="center">
-  <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/git_val.png" />
-</p>
-
 ## Setup
 
 1. **Install Dependencies:** Use env.yml and conda/mamba to create a new Python environment with the necessary dependencies: `conda create -n roms_env -f env.yml`
@@ -80,4 +74,20 @@ Validation is important, and it shoudl be done anywhere that observations are av
 ```
 python run_ibtracs_validation.py woods_hole -ni 4 -nj 4
 ```
+
+## Methodology Overview
+
+Thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
+
+<p align="center">
+  <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/git_val.png" />
+</p>
+
+## References
+Bloemendaal, N., Haigh, I.D., de Moel, H. et al. Generation of a global synthetic tropical cyclone hazard dataset using STORM. Sci Data 7, 40 (2020). https://doi.org/10.1038/s41597-020-0381-2
+
+Bloemendaal et al., A globally consistent local-scale assessment of future tropical cyclone risk.Sci. Adv.8,eabm8438(2022). 
+
+Holland, G. J., 1980: An Analytic Model of the Wind and Pressure Profiles in Hurricanes. Mon. Wea. Rev., 108, 1212–1218
+
 
