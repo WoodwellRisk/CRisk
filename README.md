@@ -21,26 +21,24 @@ In these analyses, thousands of years of synthetically (statistically) generated
 
 ## Structure
 
-A new 'project' directory is created for each area of study and model domain. Each project directory is stored and controlled from the `/projects/` directory in this repository. Each project directory eventually contains:
+Scripts can be run from anywhere. Prior to running a script, you should create a 'project' directory, which will contain inputs for ROMs and outputs. You can automatically generate this directory using `make_project.sh`:
 
-1. `roms_grd.nc` : The ROMS grid file. This is generated using the `make_grid.py` script in `projects/`. This script uses PyROMS (and by extension `GridGen`) to generate a rectangular ROMS grid file from the command line. 
-2. `roms.in.template` : The ROMS control input file. This is a template file, meaning there are missing lines waiting to be filled by our python scripts. The up to date version of this files is in `surge/ROMS`.
-3. `romsM`: The ROMS executable. You can generate this by following the ROMS compilation instructions and using `ROMS/stormsurge.h` as a header file. Once compiled, the executable should be kept in `surge/ROMS` if you will be using `make_project.sh`.
+```
+cd scripts
+make_project.sh woods_hole
+```
+
+This will generate the required subdirectories and copy `roms.in.template` and `romsM` if they exist. Each project directory should contain:
+
+1. `roms_grd.nc` : The ROMS grid file. This is generated using the `make_grid.py` script in `projects/` (see below).  
+2. `roms.in.template` : The ROMS template input file. The up to date version of this files is in `surge/ROMS`.
+3. `romsM`: The ROMS executable. 
 4. `maxima/`: This is the directory where the storm surge maxima for each year of simulation will be stored.
 5. `plots/`: If you are doing validation, initial plots will be stored here.
 6. `analysis/`: Final analysis will go in here.
-7. `roms_frc.nc`: ROMS wind and pressure forcing file. This is generated automatically when calling one of `run_synthetic_ensemble.py` or `run_ibtracs_validation.py`.
 
-## How to use
-An overview is provided below. However, to get more detailed information on each script you can use the `-h` flag, e.g. `python make_grid.py -h`.
-
-**0. Creating a new project directory**
-You can use the `make_project.sh` script in `projects/` to quickly generate a new project directory, automatically copying over the required files. This will create a new directory, the necessary subdirectories and copy the roms template file into the directory. `roms.in.template` and `romsM` will be copied from `CRISK/surge/ROMS` (assuming you have compiled the model). For example:
-
-```
-cd projects
-make_project.sh woods_hole
-```
+## Example Usage
+For help on each script, you can use the `-h` flag, e.g. `python make_grid.py -h`.
 
 **1. Making a grid**
 
