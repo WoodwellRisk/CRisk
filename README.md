@@ -40,17 +40,15 @@ This will generate the required subdirectories and copy `roms.in.template` and `
 ## Example Usage
 For help on each script, you can use the `-h` flag, e.g. `python make_grid.py -h`.
 
-**1. Making a grid**
+**1. Making a ROMS grid**
 
-`make_grid.py`: Creates a rectangular ROMS grid file from the top corner points. Top corners are defined using -c1 and -c2 (c1 = left, c2 = right) and the vertical length of the domain (-cdist) in degrees. Grid is generated using PyROMS package and Gridgen. Resolution will be approximated as best as possible, but will not be constant throughout the domain. You can specify the approximate resolution in km using the `-r` argument. `-b` is the path of the bathymetry geotiff file to use (from ETOPO or GEBCO) and is specified relative to the project directory (by default it will just look for `projects/<name>/bathy.tiff`. Make sure the data in the bathymetry file completely contains the entire grid you are making. You can download appropriate bathymetry from (GEBCO2023)[https://download.gebco.net/].
-
-For example:
+`make_grid.py`: Generates a rectangular ROMS grid file from the top corner points. Top corners are defined using -c1 and -c2 (c1 = left, c2 = right) and the vertical length of the domain (-cdist) in degrees. You can specify the approximate resolution in km using the `-r` argument. To generate a grid for woods hole at a resolution (`-r`) of 10km, length of 10 degrees, a maximum inundation depth of 5m and using `woods_hole/bathy.tiff`:
 
 ```
-python make_grid.py woods_hole  -res 10 -c1 -80 37 -c2 -70.8 43.8 -b bathy.tiff -cdist 10 -hmax 5
+python make_grid.py woods_hole  -r 10 -c1 -80 37 -c2 -70.8 43.8 -b bathy.tiff -cdist 10 -hmax 5
 ```
 
-This will have created a new grid file `roms_grd.nc` in `projects/woods_hole` that has top left corner at (80W, 37N), top right corner at (70.8W, 43.8N), extends ~10 degrees perpendicularly from those corners, has resolution of ~10km and can flood land up to 5m elevation. You can quickly plot this file using:
+This will have created a new grid file `roms_grd.nc` in `projects/woods_hole`. You can quickly plot this file using:
 
 ```
 python plot_grid.py woods_hole
