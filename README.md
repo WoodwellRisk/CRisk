@@ -9,13 +9,12 @@ Bespoke coastal risk assessments play a crucial role in empowering coastal commu
 * **Storm Surge**: Storm surge return level estimation using ROMS.
 * **Wind Speed**: Tropical cyclone wind return level estimation using CLIMADA.
 
-In these analyses, thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020) . Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
-
 ## Setup
 
 1. **Install Dependencies:** Use env.yml and conda/mamba to create a new Python environment with the necessary dependencies: `conda create -n roms_env -f env_surge.yml`
 2. **Install CRISK Python Functions**: The functions are found in `src/crisk`. From the base directory of this repository: `pip install -e .`
-3. To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow their instructions to do this.
+3. **Install PyROMS**: To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow their instructions to do this.
+4. **Compile ROMS**: Follow the instructions on the [ROMS website](https://www.myroms.org/) to setup your environment to compile and run ROMS. 
 
 ## Structure
 
@@ -78,3 +77,6 @@ You can run an emsemble of real storms through the model using `run_ibtracs_ense
 python run_ibtracs_validation.py woods_hole -ni 4 -nj 4
 ```
 
+## Methodology Overview
+
+In these analyses, thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020) . Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
