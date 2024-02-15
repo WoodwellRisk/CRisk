@@ -1,14 +1,20 @@
 # Coastal risk assessment using ROMS
 
-Bespoke coastal risk assessments play a crucial role in empowering coastal communities to build resilience to the impacts of tropical cyclones. This framework evaluates the magnitude of these risks, going from cyclone tracks to very high resolution projections of flood extent. At Woodwell, we provide selected communities with free assessments of climate change-influenced risk in the near and long term. Forming a part of our extensive climate assessment suite, this framework is designed to be efficient and flexible, ensuring delivery within 6 weeks for anywhere in the world. This directory contains scripts and functions for running the Regional Ocean Model System (ROMS) to assess coastal risk due to tropical cyclone storm surges. For a specified location, thousands of years of synthetically (statistically) generated tropical cyclones are used to force the ROMS ocean surface. Tracks from the STORM dataset (Bloemendaal et al., 2020) are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
-
 <p align="center">
   <img src="https://github.com/WoodwellRisk/CRisk/blob/main/assets/crisk_ex.png" />
 </p>
 
-## Setup
+Bespoke coastal risk assessments play a crucial role in empowering coastal communities to build resilience to the impacts of tropical cyclones. This framework evaluates the magnitude of these risks, going from cyclone tracks to very high resolution projections of flood extent. Here, we have functions and code for:
 
-1. Use env_surge.yml and conda/mamba to create a new Python environment with the necessary dependencies:
+* Storm Surge: Storm surge return level estimation using ROMS.
+* Wind Speed: Tropical cyclone wind return level estimation using CLIMADA.
+
+In these analyses, thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020) . Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
+
+## Setup
+Setup consists of installing dependencies, installing python functions and compiling ROMS (if you will be doing ocean simulations).
+
+1. **Install Dependencies:** Use env.yml and conda/mamba to create a new Python environment with the necessary dependencies:
 ``` conda create -n roms_env -f env_surge.yml ```
 The `-e` flag means that the modules are editable. The functions are found in `src/crisk_surge` and be imported into Python using `import crisk_surge`, or by importing modules directory e.g. `from crisk_surge import validation postprocessing forcing` 
 3. To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow their instructions to do this.
