@@ -13,8 +13,8 @@ Bespoke coastal risk assessments play a crucial role in empowering coastal commu
 
 1. **Install Dependencies:** Use env.yml and conda/mamba to create a new Python environment with the necessary dependencies: `conda create -n roms_env -f env_surge.yml`
 2. **Install CRISK Python Functions**: The functions are found in `src/crisk`. From the base directory of this repository: `pip install -e .`
-3. **Install PyROMS**: To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow their instructions to do this.
-4. **Compile ROMS**: Follow the instructions on the [ROMS website](https://www.myroms.org/) to setup your environment to compile and run ROMS. 
+3. **Install PyROMS**: To generate ROMs grids, the PyROMS library is used, which requires a separate installation. You can follow [their instructions](https://github.com/ESMG/pyroms) to do this.
+4. **Compile ROMS**: Follow the instructions on the [ROMS website](https://www.myroms.org/) to setup your environment to compile and run ROMS. You will need to compile ROMS v3.6, and you can use `ROMS/build_roms.sh` and `ROMS/stormsurge.h`.
 
 ## Structure
 
