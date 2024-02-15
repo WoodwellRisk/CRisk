@@ -6,8 +6,8 @@
 
 Bespoke coastal risk assessments play a crucial role in empowering coastal communities to build resilience to the impacts of tropical cyclones. This framework evaluates the magnitude of these risks, going from cyclone tracks to very high resolution projections of flood extent. Here, we have functions and code for:
 
-* Storm Surge: Storm surge return level estimation using ROMS.
-* Wind Speed: Tropical cyclone wind return level estimation using CLIMADA.
+* **Storm Surge**: Storm surge return level estimation using ROMS.
+* **Wind Speed**: Tropical cyclone wind return level estimation using CLIMADA.
 
 In these analyses, thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020) . Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
 
