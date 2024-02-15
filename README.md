@@ -71,7 +71,7 @@ This command will run 1000 years of STORM synthetic tracks through the model. It
 
 **3. Running a validation with real storms**
 
-You can run an emsemble of real storms through the model using `run_ibtracs_ensemble.py`. This is useful for validation. To perform the validation, download the relevant tide gauge from the research quality University of Hawaii Sea Level Center database. This netCDF file should be placed in the project directory and names `obs.nc`. The result will be a file called `validation.csv`, containing various statistics.
+Validation is important, and it shoudl be done anywhere that observations are available. You can run an ensemble of real storms through the model using `run_ibtracs_ensemble.py`. To perform the validation, download the relevant tide gauge from the research quality [University of Hawaii Sea Level Center database](https://uhslc.soest.hawaii.edu/network/). This netCDF file should be placed in the project directory and names `obs.nc`. The result will be a file called `validation.csv`, containing a row comparing modelled and observed values for each simulated storm.
 
 ```
 python run_ibtracs_validation.py woods_hole -ni 4 -nj 4
