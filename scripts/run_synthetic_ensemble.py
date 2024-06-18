@@ -41,9 +41,9 @@ parser.add_argument('-sfile', type=str, help='Name of shapefile containing track
 parser.add_argument('-sbuff', type=float, help='Buffer width (degrees) around track neighbourhood to use tracks', default=2)
 parser.add_argument('-tracks', type=str, help='Name of STORM synthetic track model to use in filename construction. Will also be used in names of analysis files.', default='IBTRACS')
 parser.add_argument('-cdmodel', type=str, help='Wind stress parameterization. Default=peng_li15', default='peng_li15')
-parser.add_argument('-cdmax', type=float, help='Maximum value of stress Cd. Default=2.1e-3', default=2e-3)
+parser.add_argument('-cdmax', type=float, help='Maximum value of stress Cd. Default=2.1e-3', default=2.1e-3)
 parser.add_argument('-bstress', type=float, help='Bottom stress. Default=2e-3', default = 1e-3)
-parser.add_argument('-scale', type=float, help='Wind Scaling. Default=0.89', default = .83)
+parser.add_argument('-scale', type=float, help='Wind Scaling. Default=0.89', default = .88)
 parser.add_argument('-dt', type=float, help='Coarse grid delta time. Default=10', default = 10)
 
 args = parser.parse_args()
@@ -82,7 +82,7 @@ ds_grd = xr.open_dataset( fp_grd )
 grid_poly = forcing.get_grid_poly( ds_grd.lon_rho, ds_grd.lat_rho)
 
 # Subset tracks in grid domain
-keep_idx = track_tools.subset_tracks_in_poly(tracks, grid_poly, buffer=1 )
+keep_idx = track_tools.subset_tracks_in_poly(tracks, grid_poly, buffer=2 )
 tracks = [tracks[ii] for ii in keep_idx]
 sid = [sid[ii] for ii in keep_idx]
 print(f'    Subsetting to grid domain: {len(tracks)}', flush=True)
@@ -151,8 +151,12 @@ for yy in year_list:
         print(f'    Year {yy} / {year_end} --> {ii+1} / {n_storms_year} ---> {sid_yy[ii]}')
 
         # Make forcing for this storm
-        forcing.make_forcing( ds_grd, storm, args.cdmodel, 2, args.cdmax,
-                              './roms_frc.nc', args.scale )
+        try:
+            forcing.make_forcing( ds_grd, storm, args.cdmodel, 0.1, args.cdmax,
+                                  './roms_frc.nc', args.scale )
+        except:
+            print('Failed to make forcing')
+            continue
         
         # Make input control file
         input_control.make_infile_from_files( ntilei = args.ni, 
@@ -163,7 +167,7 @@ for yy in year_list:
                                               fp_grd = 'roms_grd.nc')
     
         # Run model
-        subprocess.run( f'mpirun -np {ncpu} --oversubscribe romsM roms.in > log.txt', shell=True,)
+        subprocess.run( f'/usr/bin/mpirun -np {ncpu} --oversubscribe romsM roms.in > log.txt', shell=True,)
 
         # Check that run was a success (ERROR will be in log file if not)
         if open('log.txt', 'r').read().find('ERROR') >=0:
@@ -181,10 +185,12 @@ for yy in year_list:
         ts_yy['year'] = yy
         timeseries.append(ts_yy)
 
-    ds_zmax = xr.concat(z_envelopes, dim='storm').max(dim='storm')
-    ds_zmax.to_netcdf( f'./maxima/zmax_y{yystr}.nc') 
-    ds_ts = xr.concat(timeseries, dim='storm')
-    ds_ts.to_netcdf( f'./maxima/timeseries_y{yystr}.nc') 
+    if len(z_envelopes) > 0:
+        ds_zmax = xr.concat(z_envelopes, dim='storm').max(dim='storm')
+        ds_zmax.to_netcdf( f'./maxima/zmax_y{yystr}.nc') 
+        ds_ts = xr.concat(timeseries, dim='storm')
+        ds_ts.to_netcdf( f'./maxima/timeseries_y{yystr}.nc') 
+        
 
 # Aggregate zmax
 fp_list = glob('./maxima/zmax*')
@@ -224,32 +230,31 @@ postprocessing.analyse_return_periods(fp_zenv = fp_zenv,
                                       fp_out_rp = fp_rp,
                                       fp_out_coast = fp_coast)
 ### Make tifs
-ds = xr.open_dataset( f'./analysis/return_periods_grid_{args.tracks}.nc' ) 
-grd = xr.open_dataset('roms_grd.nc')
-rp = ds.rp.values
-r = args.r
+# ds = xr.open_dataset( f'./analysis/return_periods_grid_{args.tracks}.nc' ) 
+# grd = xr.open_dataset('roms_grd.nc')
+# rp = ds.rp.values
 
-# Interpolate to regular grid
-lonbnds = ( ds.lon_rho.min().values, ds.lon_rho.max().values )
-latbnds = ( ds.lat_rho.min().values, ds.lat_rho.max().values )
+# # Interpolate to regular grid
+# lonbnds = ( ds.lon_rho.min().values, ds.lon_rho.max().values )
+# latbnds = ( ds.lat_rho.min().values, ds.lat_rho.max().values )
 
-# Create regular grid
-grid_lon = np.arange( lonbnds[0], lonbnds[1], r/222 )
-grid_lat = np.arange( latbnds[0], latbnds[1], r/222 )
-grid = xr.Dataset( coords = dict( lon = grid_lon, lat=grid_lat ) )
+# # Create regular grid
+# grid_lon = np.arange( lonbnds[0], lonbnds[1], r/222 )
+# grid_lat = np.arange( latbnds[0], latbnds[1], r/222 )
+# grid = xr.Dataset( coords = dict( lon = grid_lon, lat=grid_lat ) )
 
-# Interpolate
-ds = ds.rename({'lon_rho':'lon','lat_rho':'lat'})
-rg = xe.Regridder( ds, grid, method = 'nearest_s2d')
-h_rg = rg(grd.h)
-grid['mask'] = h_rg > 0
-ds['mask'] = grd.h > 0
-rg = xe.Regridder( ds, grid, method = 'bilinear', 
-                   extrap_method='nearest_s2d')
-ds_rg = rg( ds )
-ds_rg = ds_rg.rename({'lat':'y','lon':'x'})
+# # Interpolate
+# ds = ds.rename({'lon_rho':'lon','lat_rho':'lat'})
+# rg = xe.Regridder( ds, grid, method = 'nearest_s2d')
+# h_rg = rg(grd.h)
+# grid['mask'] = h_rg > 0
+# ds['mask'] = grd.h > 0
+# rg = xe.Regridder( ds, grid, method = 'bilinear', 
+#                    extrap_method='nearest_s2d')
+# ds_rg = rg( ds )
+# ds_rg = ds_rg.rename({'lat':'y','lon':'x'})
 
-for ii, rpii in enumerate(rp):
-    dsii = ds_rg.sel(rp = rpii).surge
-    dsii = dsii.rio.write_crs(4326)
-    dsii.rio.to_raster(f'surge_rp_{rpii}yr.tiff')
+# for ii, rpii in enumerate(rp):
+#     dsii = ds_rg.sel(rp = rpii).surge
+#     dsii = dsii.rio.write_crs(4326)
+#     dsii.rio.to_raster(f'surge_rp_{rpii}yr.tiff')
