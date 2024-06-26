@@ -78,6 +78,14 @@ Validation is important, and it shoudl be done anywhere that observations are av
 python run_ibtracs_validation.py woods_hole -ni 4 -nj 4
 ```
 
+## Output Files
+For ROMS synthetic simulations, final output files will be saved into `{proj}/analysis`. These files are:
+
+1. `return_periods_grid*`: The storm surge return levels on the model grid.
+2. `timeseries*`: At coastal locations, this file contains time series from each storm.
+3. `mean_surge*`: At coastal locations, this file contains the normalized time series for each surge percentile.
+4. `zenv*`: Contains all of the maximum surge envelopes on the model grid.
+
 ## Methodology Overview
 
 Thousands of years of synthetically (statistically) generated tropical cyclones are expanded into 2D wind and pressure fields using the parametric model of Holland, (1980). At the moment, we use tracks from the STORM dataset (Bloemendaal et al., 2020). Wind fields are then converted to wind stress at the ocean surface using a quadratic function of windspeed and a drag coefficient according to (Peng et al., 2020). A validation against observed storm surges at tide gauges shows a mean absolute error in maximum surge of ~14cm and a correlation of 84%. For more information on the methodology and accuracy assessment, see (methodologydoc).
