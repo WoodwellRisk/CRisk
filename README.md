@@ -36,6 +36,8 @@ This will generate the required subdirectories and copy `roms.in.template` and `
 5. `plots/`: If you are doing validation, initial plots will be stored here.
 6. `analysis/`: Final analysis will go in here.
 
+As shown above, I typically create my project directories inside the `scripts/` directory.
+
 ## Example Usage
 For help on each script, you can use the `-h` flag, e.g. `python make_grid.py -h`.
 
