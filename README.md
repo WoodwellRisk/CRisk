@@ -10,6 +10,7 @@ Bespoke coastal risk assessments play a crucial role in empowering coastal commu
 * **Wind Speed**: Tropical cyclone wind return level estimation using CLIMADA.
 
 ## Setup
+If you are going to run the ROMS analysis (storm surge), you will need to follow all of the steps below. For just wind speed analysis, steps 1 and 2 are sufficient.
 
 1. **Install Dependencies:** Use env.yml and conda/mamba to create a new Python environment with the necessary dependencies: `conda create -n roms_env -f env.yml`
 2. **Install CRISK Python Functions**: The functions are found in `src/crisk`. From the base directory of this repository: `pip install -e .`
